@@ -53,8 +53,10 @@ func main() {
 	c2 := make(chan int, 16)
 	c3 := make(chan int, 16)
 
-	go input1(c1, int(arg))
-	go input2(c2, int(arg))
+	x := int(arg)
+
+	go input1(c1, x)
+	go input2(c2, x)
 	go add(c1, c2, c3)
 
 	sum := <-c3
