@@ -3,24 +3,28 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
-	"time"
 )
 
 func add(c1 <-chan int, c2 <-chan int, c3 chan<- int) {
 	var msg, output int
+	var ok1, ok2 bool
 	for {
-		select {
-		case msg = <-c1:
+		msg, ok1 = <-c1
+		if ok1 {
 			output += msg
-			c3 <- output
-		case msg = <-c2:
-			output += msg
-			c3 <- output
-		default:
-			time.After(time.Millisecond)
 		}
+		msg, ok2 = <-c2
+		if ok2 {
+			output += msg
+		}
+		if ok1 == false && ok2 == false {
+			break
+		}
+		runtime.Gosched()
 	}
+	c3 <- output
 }
 
 func input1(c1 chan<- int, arg int) {
@@ -29,6 +33,7 @@ func input1(c1 chan<- int, arg int) {
 			c1 <- i
 		}
 	}
+	close(c1)
 }
 
 func input2(c2 chan<- int, arg int) {
@@ -37,6 +42,7 @@ func input2(c2 chan<- int, arg int) {
 			c2 <- i
 		}
 	}
+	close(c2)
 }
 
 func main() {
@@ -50,8 +56,6 @@ func main() {
 	go input2(c2, int(arg))
 	go add(c1, c2, c3)
 
-	for {
-		sum := <-c3
-		fmt.Println("Sum ", sum)
-	}
+	sum := <-c3
+	fmt.Println("Sum ", sum)
 }
