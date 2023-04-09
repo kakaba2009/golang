@@ -25,6 +25,7 @@ func add(c1 <-chan int, c2 <-chan int, c3 chan<- int) {
 		runtime.Gosched()
 	}
 	c3 <- output
+	close(c3)
 }
 
 func input1(c1 chan<- int, arg int) {
