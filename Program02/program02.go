@@ -84,6 +84,7 @@ func ReadSubPage(job chan string, dir string) {
 		doc, err := goquery.NewDocumentFromReader(res.Body)
 		if err != nil {
 			log.Fatal(err)
+			continue
 		}
 		content := doc.Find("p").Text()
 		WriteFile(dir, name, string(content))
