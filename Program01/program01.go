@@ -25,13 +25,20 @@ func ParseTokens(resp *http.Response) {
 		log.Fatal(err)
 	}
 
-	title := doc.Find("title").Text()
-	ProcessText([]string{title}, writer)
+	ProcessText([]string{"id", "url", "content"}, writer)
 
-	doc.Find("a").Each(func(i int, s *goquery.Selection) {
-		url, _ := s.Attr("href")
-		txt, _ := s.Attr("title")
-		ProcessText([]string{url, txt}, writer)
+	title := doc.Find("title").Text()
+	ProcessText([]string{"title", "", title}, writer)
+
+	doc.Find("li").Each(func(i int, s *goquery.Selection) {
+		ids, _ := s.Attr("id")
+		if ids != "" {
+			s.Find("a").Each(func(i int, s *goquery.Selection) {
+				url, _ := s.Attr("href")
+				txt, _ := s.Attr("title")
+				ProcessText([]string{ids, url, txt}, writer)
+			})
+		}
 	})
 }
 
