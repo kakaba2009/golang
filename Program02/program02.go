@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/md5"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -17,6 +18,7 @@ var wg sync.WaitGroup
 var hp string = "https://www.secretchina.com"
 
 func FindLinks(resp *http.Response, job chan string) {
+	defer close(job)
 	defer wg.Done()
 	tokenizer := html.NewTokenizer(resp.Body)
 	isLink := false
@@ -62,7 +64,9 @@ func ProcessText(tokenizer *html.Tokenizer, job chan string, url string) {
 }
 
 func WriteFile(dir string, name string, content string) {
-	f, err := os.Create(dir + "/" + name + ".html")
+	md5s := md5.Sum([]byte(name))
+	hash := fmt.Sprintf("%x", md5s)
+	f, err := os.Create(dir + "/" + hash + ".html")
 	if err != nil {
 		log.Fatal(err)
 		return
