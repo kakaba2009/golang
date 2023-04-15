@@ -65,6 +65,7 @@ func WriteFile(dir string, name string, content string) {
 	f, err := os.Create(dir + "/" + name + ".html")
 	if err != nil {
 		log.Fatal(err)
+		return
 	}
 	defer f.Close()
 
@@ -87,13 +88,14 @@ func ReadSubPage(job chan string, dir string) {
 		res, err := http.Get(hp + url)
 		if err != nil {
 			log.Fatal(err)
+			return
 		}
 		content, err := ioutil.ReadAll(res.Body)
+		WriteFile(dir, name, string(content))
 		res.Body.Close()
 		if err != nil {
 			log.Fatal(err)
 		}
-		WriteFile(dir, name, string(content))
 	}
 }
 
@@ -101,12 +103,13 @@ func ReadMainPage(link string, job chan string, dir string) {
 	res, err := http.Get(link)
 	if err != nil {
 		log.Fatal(err)
+		return
 	}
 
 	wg.Add(1)
 	go FindLinks(res, job)
 
-	threads := 1
+	threads := 5
 	wg.Add(threads)
 	for i := 1; i <= threads; i++ {
 		go ReadSubPage(job, dir)
