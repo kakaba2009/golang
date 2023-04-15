@@ -70,20 +70,23 @@ func ProcessText(tokenizer *html.Tokenizer, job chan string, url string) {
 }
 
 func IsDownloaded(dir string, name string) bool {
-	md5s := md5.Sum([]byte(name))
-	hash := fmt.Sprintf("%x", md5s)
-	full := dir + "/" + hash + ".html"
+	full := hashName(name, dir)
 	if _, err := os.Stat(full); os.IsNotExist(err) {
 		return false
 	}
 	return true
 }
 
-func WriteFile(dir string, name string, content string) {
-	fmt.Println("WriteFile ... ")
+func hashName(name string, dir string) string {
 	md5s := md5.Sum([]byte(name))
 	hash := fmt.Sprintf("%x", md5s)
-	f, err := os.Create(dir + "/" + hash + ".html")
+	full := dir + "/" + hash + ".txt"
+	return full
+}
+
+func WriteFile(dir string, name string, content string) {
+	full := hashName(name, dir)
+	f, err := os.Create(full)
 	if err != nil {
 		log.Fatal(err)
 		return
