@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"golang.org/x/net/html"
+	"github.com/PuerkitoBio/goquery"
 )
 
 func ParseTokens(resp *http.Response) {
@@ -19,42 +19,26 @@ func ParseTokens(resp *http.Response) {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	tokenizer := html.NewTokenizer(resp.Body)
-	isTitle := false
-	isLink := false
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
 
-	for {
-		tokenType := tokenizer.Next()
-
-		switch tokenType {
-		case html.ErrorToken:
-			fmt.Println("Finished")
-			return
-		case html.StartTagToken:
-			token := tokenizer.Token()
-			if "title" == token.Data {
-				isTitle = true
-			} else if "a" == token.Data {
-				isLink = true
-			}
-		case html.TextToken:
-			if isTitle {
-				ProcessText(tokenizer, writer)
-				isTitle = false
-			} else if isLink {
-				ProcessText(tokenizer, writer)
-				isLink = false
-			}
-		}
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	title := doc.Find("title").Text()
+	ProcessText([]string{title}, writer)
+
+	doc.Find("a").Each(func(i int, s *goquery.Selection) {
+		url, _ := s.Attr("href")
+		txt, _ := s.Attr("title")
+		ProcessText([]string{url, txt}, writer)
+	})
 }
 
-func ProcessText(tokenizer *html.Tokenizer, writer *csv.Writer) {
-	token := tokenizer.Token()
-	data := token.Data
+func ProcessText(data []string, writer *csv.Writer) {
 	if len(data) > 0 {
 		fmt.Println(data)
-		writer.Write([]string{data})
+		writer.Write(data)
 	}
 }
 
