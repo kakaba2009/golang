@@ -93,7 +93,7 @@ func ReadSubPage(job chan string, dir string) {
 		}
 		name := links[1]
 		if IsDownloaded(dir, name) {
-			fmt.Println(url + " already downaded, skip ...")
+			fmt.Println(url + " already downloaded, skip ...")
 			continue
 		}
 		res, err := http.Get(hp + url)
