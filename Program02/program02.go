@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/html"
+	"github.com/PuerkitoBio/goquery"
 )
 
 var wg sync.WaitGroup
@@ -20,48 +20,32 @@ var hp string = "https://www.secretchina.com"
 func FindLinks(resp *http.Response, job chan string) {
 	defer close(job)
 	defer wg.Done()
-	tokenizer := html.NewTokenizer(resp.Body)
-	isLink := false
-	url := ""
 
-	for {
-		tokenType := tokenizer.Next()
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
 
-		switch tokenType {
-		case html.ErrorToken:
-			fmt.Println("Finished")
-			return
-		case html.StartTagToken:
-			token := tokenizer.Token()
-			if "a" == token.Data {
-				isLink = true
-				for i := 0; i < len(token.Attr); i++ {
-					attr := token.Attr[i]
-					if attr.Key == "href" {
-						url = attr.Val
-						break
-					}
-				}
-			}
-		case html.TextToken:
-			if isLink {
-				ProcessText(tokenizer, job, url)
-				isLink = false
-				url = ""
-			}
-		}
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	doc.Find("li").Each(func(i int, s *goquery.Selection) {
+		ids, _ := s.Attr("id")
+		if ids != "" {
+			s.Find("a").Each(func(i int, s *goquery.Selection) {
+				url, _ := s.Attr("href")
+				txt, _ := s.Attr("title")
+				ProcessText(job, url, txt)
+			})
+		}
+	})
 }
 
-func ProcessText(tokenizer *html.Tokenizer, job chan string, url string) {
+func ProcessText(job chan string, url string, title string) {
 	// Ignore other web page url links
 	if strings.Contains(url, "http:") || strings.Contains(url, "https:") || strings.HasPrefix(url, "#") {
 		return
 	}
-	token := tokenizer.Token()
-	data := token.Data
-	if strings.TrimSpace(data) != "" && strings.TrimSpace(url) != "" {
-		jobData := url + "|" + data
+	if strings.TrimSpace(title) != "" && strings.TrimSpace(url) != "" {
+		jobData := url + "|" + title
 		job <- jobData
 		fmt.Println(jobData)
 	}
