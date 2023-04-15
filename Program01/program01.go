@@ -25,7 +25,7 @@ func ParseTokens(resp *http.Response) {
 		log.Fatal(err)
 	}
 
-	ProcessText([]string{"id", "url", "content"}, writer)
+	ProcessText([]string{"id", "url", "title"}, writer)
 
 	title := doc.Find("title").Text()
 	ProcessText([]string{"title", "", title}, writer)
