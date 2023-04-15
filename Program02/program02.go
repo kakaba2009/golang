@@ -96,7 +96,7 @@ func ReadSubPage(job chan string, dir string) {
 		res, err := http.Get(hp + url)
 		if err != nil {
 			log.Fatal(err)
-			return
+			continue
 		}
 		content, err := ioutil.ReadAll(res.Body)
 		WriteFile(dir, name, string(content))
