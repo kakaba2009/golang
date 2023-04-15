@@ -16,10 +16,9 @@ import (
 
 var wg sync.WaitGroup
 var hp string = "https://www.secretchina.com"
-var downloaded sync.Map
 
 func FindLinks(resp *http.Response, job chan string) {
-	defer close(job)
+	fmt.Println("Start to find links ... ")
 	defer wg.Done()
 	tokenizer := html.NewTokenizer(resp.Body)
 	isLink := false
@@ -55,6 +54,7 @@ func FindLinks(resp *http.Response, job chan string) {
 }
 
 func ProcessText(tokenizer *html.Tokenizer, job chan string, url string) {
+	fmt.Println("ProcessText ... ")
 	// Ignore other web page url links
 	if strings.Contains(url, "http:") || strings.Contains(url, "https:") || strings.HasPrefix(url, "#") {
 		return
@@ -68,7 +68,18 @@ func ProcessText(tokenizer *html.Tokenizer, job chan string, url string) {
 	}
 }
 
+func IsDownloaded(dir string, name string) bool {
+	md5s := md5.Sum([]byte(name))
+	hash := fmt.Sprintf("%x", md5s)
+	full := dir + "/" + hash + ".html"
+	if _, err := os.Stat(full); os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
+
 func WriteFile(dir string, name string, content string) {
+	fmt.Println("WriteFile ... ")
 	md5s := md5.Sum([]byte(name))
 	hash := fmt.Sprintf("%x", md5s)
 	f, err := os.Create(dir + "/" + hash + ".html")
@@ -86,6 +97,7 @@ func WriteFile(dir string, name string, content string) {
 }
 
 func ReadSubPage(job chan string, dir string) {
+	fmt.Println("ReadSubPage ... ")
 	defer wg.Done()
 	for data := range job {
 		links := strings.Split(data, "|")
@@ -93,12 +105,11 @@ func ReadSubPage(job chan string, dir string) {
 		if strings.Contains(url, hp) || strings.Contains(url, "http:") || strings.Contains(url, "https:") {
 			continue
 		}
-		_, ok := downloaded.Load(url)
-		if ok {
+		name := links[1]
+		if IsDownloaded(dir, name) {
 			fmt.Println(url + " already downaded, skip ...")
 			return
 		}
-		name := links[1]
 		res, err := http.Get(hp + url)
 		if err != nil {
 			log.Fatal(err)
@@ -106,7 +117,6 @@ func ReadSubPage(job chan string, dir string) {
 		}
 		content, err := ioutil.ReadAll(res.Body)
 		WriteFile(dir, name, string(content))
-		downloaded.Store(url, true)
 		res.Body.Close()
 		if err != nil {
 			log.Fatal(err)
@@ -115,6 +125,7 @@ func ReadSubPage(job chan string, dir string) {
 }
 
 func ReadMainPage(link string, job chan string, dir string) {
+	fmt.Println("ReadMainPage ... ")
 	res, err := http.Get(link)
 	if err != nil {
 		log.Fatal(err)
@@ -146,11 +157,8 @@ func Download() {
 
 func main() {
 	ticker := time.NewTicker(time.Minute)
-	done := make(chan bool)
 	for {
 		select {
-		case <-done:
-			return
 		case t := <-ticker.C:
 			fmt.Println("Tick at", t)
 			Download()
