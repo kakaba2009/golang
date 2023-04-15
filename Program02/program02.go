@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/md5"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -54,7 +53,7 @@ func ProcessText(job chan string, url string, title string) {
 func WriteFile(dir string, name string, content string) {
 	md5s := md5.Sum([]byte(name))
 	hash := fmt.Sprintf("%x", md5s)
-	f, err := os.Create(dir + "/" + hash + ".html")
+	f, err := os.Create(dir + "/" + hash + ".txt")
 	if err != nil {
 		log.Fatal(err)
 		return
@@ -82,7 +81,11 @@ func ReadSubPage(job chan string, dir string) {
 			log.Fatal(err)
 			continue
 		}
-		content, err := ioutil.ReadAll(res.Body)
+		doc, err := goquery.NewDocumentFromReader(res.Body)
+		if err != nil {
+			log.Fatal(err)
+		}
+		content := doc.Find("p").Text()
 		WriteFile(dir, name, string(content))
 		res.Body.Close()
 		if err != nil {
