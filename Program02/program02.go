@@ -39,7 +39,6 @@ func FindLinks(resp *http.Response, job chan string) {
 					attr := token.Attr[i]
 					if attr.Key == "href" {
 						url = attr.Val
-						fmt.Println(url)
 						break
 					}
 				}
@@ -55,11 +54,16 @@ func FindLinks(resp *http.Response, job chan string) {
 }
 
 func ProcessText(tokenizer *html.Tokenizer, job chan string, url string) {
+	// Ignore other web page url links
+	if strings.Contains(url, "http:") || strings.Contains(url, "https:") || strings.HasPrefix(url, "#") {
+		return
+	}
 	token := tokenizer.Token()
 	data := token.Data
 	if strings.TrimSpace(data) != "" && strings.TrimSpace(url) != "" {
-		fmt.Println(data)
-		job <- url + "|" + data
+		jobData := url + "|" + data
+		job <- jobData
+		fmt.Println(jobData)
 	}
 }
 
