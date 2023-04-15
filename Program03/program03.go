@@ -19,6 +19,7 @@ var hp string = "https://www.secretchina.com"
 
 func FindLinks(resp *http.Response, job chan string) {
 	fmt.Println("Start to find links ... ")
+	defer close(job)
 	defer wg.Done()
 	tokenizer := html.NewTokenizer(resp.Body)
 	isLink := false
@@ -93,7 +94,7 @@ func WriteFile(dir string, name string, content string) {
 	if err2 != nil {
 		log.Fatal(err2)
 	}
-	fmt.Println("done")
+	fmt.Println("WriteFile done")
 }
 
 func ReadSubPage(job chan string, dir string) {
@@ -108,12 +109,12 @@ func ReadSubPage(job chan string, dir string) {
 		name := links[1]
 		if IsDownloaded(dir, name) {
 			fmt.Println(url + " already downaded, skip ...")
-			return
+			continue
 		}
 		res, err := http.Get(hp + url)
 		if err != nil {
 			log.Fatal(err)
-			return
+			continue
 		}
 		content, err := ioutil.ReadAll(res.Body)
 		WriteFile(dir, name, string(content))
@@ -124,8 +125,10 @@ func ReadSubPage(job chan string, dir string) {
 	}
 }
 
-func ReadMainPage(link string, job chan string, dir string) {
+func ReadMainPage(link string, dir string) {
 	fmt.Println("ReadMainPage ... ")
+	job := make(chan string)
+
 	res, err := http.Get(link)
 	if err != nil {
 		log.Fatal(err)
@@ -147,21 +150,17 @@ func ReadMainPage(link string, job chan string, dir string) {
 
 func Download() {
 	fmt.Println("Start to download ... ")
-	job := make(chan string)
 	dir := time.Now().Format("2006-01-02")
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
 	}
-	ReadMainPage(hp, job, dir)
+	ReadMainPage(hp, dir)
 }
 
 func main() {
-	ticker := time.NewTicker(time.Minute)
 	for {
-		select {
-		case t := <-ticker.C:
-			fmt.Println("Tick at", t)
-			Download()
-		}
+		Download()
+		fmt.Println("Sleep ...")
+		time.Sleep(time.Minute)
 	}
 }
