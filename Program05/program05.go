@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/md5"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -25,6 +26,14 @@ type ConfigFile struct {
 
 func FindLinks(resp *http.Response, job chan string) {
 	fmt.Println("Start to find links ... ")
+	file, err := os.Create("public/id_file.csv")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
 	defer close(job)
 	defer wg.Done()
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
@@ -40,6 +49,7 @@ func FindLinks(resp *http.Response, job chan string) {
 				url, _ := s.Attr("href")
 				txt, _ := s.Attr("title")
 				ProcessText(job, url, txt, ids)
+				writer.Write([]string{ids})
 			})
 		}
 	})
@@ -152,18 +162,20 @@ func ReadMainPage(link string, dir string, config ConfigFile) {
 
 func Download(config ConfigFile) {
 	fmt.Println("Start to download ... ")
-	dir := "home"
+	dir := "public"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
 	}
+	os.Create(dir + "/id_file.csv")
+
 	ReadMainPage(config.Url, dir, config)
+	// Generate html index
+	GenerateHtml()
 }
 
 func StartEcho() {
 	e := echo.New()
-	e.GET("/", func(c echo.Context) error {
-		return c.String(http.StatusOK, "Hello, ECHO!")
-	})
+	e.Static("/", "public")
 	e.Logger.Fatal(e.Start(":8000"))
 }
 
@@ -201,5 +213,44 @@ func timerDownload(config ConfigFile) {
 			fmt.Println("Ticking at", t)
 			Download(config)
 		}
+	}
+}
+
+func GenerateHtml() {
+	csv, err := os.ReadFile("public/id_file.csv")
+	if err != nil {
+		fmt.Print(err)
+		return
+	}
+	all_ids := string(csv)
+	ids := strings.Split(all_ids, "\n")
+
+	html := `
+	<!DOCTYPE html>
+	<html>
+	<head>
+	<title>ECHO Web Server</title>
+	</head>
+	<body>
+	<h1>Article</h1>`
+
+	for i := 0; i < len(ids); i++ {
+		if ids[i] != "" {
+			html += "<li><a href=" + ids[i] + ".txt>" + ids[i] + "</a></li>"
+		}
+	}
+
+	html += `</body>
+	</html>`
+
+	f, err := os.Create("public/index.html")
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	defer f.Close()
+	_, err2 := f.WriteString(html)
+	if err2 != nil {
+		log.Fatal(err2)
 	}
 }
