@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -15,12 +16,11 @@ import (
 )
 
 var wg sync.WaitGroup
-var hp string = "https://www.secretchina.com"
 
 type ConfigFile struct {
-	url      string
-	threads  int
-	interval int
+	Url      string `json:"url"`
+	Threads  int    `json:"threads"`
+	Interval int    `json:"interval"`
 }
 
 func FindLinks(resp *http.Response, job chan string) {
@@ -89,13 +89,13 @@ func WriteFile(dir string, name string, content string) {
 	fmt.Println("WriteFile done")
 }
 
-func ReadSubPage(job chan string, dir string) {
+func ReadSubPage(job chan string, dir string, config ConfigFile) {
 	fmt.Println("ReadSubPage ... ")
 	defer wg.Done()
 	for data := range job {
 		links := strings.Split(data, "|")
 		url := links[0]
-		if strings.Contains(url, hp) || strings.Contains(url, "http:") || strings.Contains(url, "https:") {
+		if strings.Contains(url, "http:") || strings.Contains(url, "https:") {
 			continue
 		}
 		name := links[1]
@@ -103,7 +103,7 @@ func ReadSubPage(job chan string, dir string) {
 			fmt.Println(url + " already downloaded, skip ...")
 			continue
 		}
-		res, err := http.Get(hp + url)
+		res, err := http.Get(config.Url + url)
 		if err != nil {
 			log.Fatal(err)
 			continue
@@ -122,7 +122,7 @@ func ReadSubPage(job chan string, dir string) {
 	}
 }
 
-func ReadMainPage(link string, dir string) {
+func ReadMainPage(link string, dir string, config ConfigFile) {
 	fmt.Println("ReadMainPage ... ")
 	job := make(chan string)
 
@@ -135,39 +135,52 @@ func ReadMainPage(link string, dir string) {
 	wg.Add(1)
 	go FindLinks(res, job)
 
-	threads := 5
+	threads := config.Threads
 	wg.Add(threads)
 	for i := 1; i <= threads; i++ {
-		go ReadSubPage(job, dir)
+		go ReadSubPage(job, dir, config)
 	}
 
 	wg.Wait()
 	res.Body.Close()
 }
 
-func Download() {
+func Download(config ConfigFile) {
 	fmt.Println("Start to download ... ")
 	dir := time.Now().Format("2006-01-02")
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
 	}
-	ReadMainPage(hp, dir)
+	ReadMainPage(config.Url, dir, config)
+}
+
+func saveJson() {
+	message := ConfigFile{
+		Url:      "https://www.secretchina.com",
+		Threads:  5,
+		Interval: 1,
+	}
+	b, err := json.Marshal(message)
+	if err != nil {
+		fmt.Print(err)
+	}
+	os.WriteFile("config.txt", b, 0755)
 }
 
 func main() {
 	pwd, _ := os.Getwd()
 	fmt.Println(pwd)
-	config, err := os.ReadFile("config.json")
+	conFile, err := os.ReadFile("config.json")
 	if err != nil {
 		fmt.Print(err)
 		return
 	}
-	var message ConfigFile
-	err = json.Unmarshal(config, &message)
-	fmt.Println(message)
+	var config ConfigFile
+	err = json.Unmarshal(conFile, &config)
+	fmt.Println(config)
 	for {
-		Download()
-		fmt.Println("Sleep ...")
-		time.Sleep(time.Minute)
+		Download(config)
+		fmt.Println("Sleep " + strconv.Itoa(config.Interval) + " minutes")
+		time.Sleep(time.Minute * time.Duration(config.Interval))
 	}
 }
