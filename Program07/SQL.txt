@@ -1,0 +1,8 @@
+
+CREATE TABLE article (
+	id varchar(255),
+	title varchar(255),
+	url varchar(255)
+)
+
+
