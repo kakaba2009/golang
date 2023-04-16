@@ -212,7 +212,7 @@ func main() {
 	// Start Web Server
 	e := StartEcho()
 
-	// Below funcrion blocks
+	// Below function blocks
 	timerDownload(config, quit)
 
 	//graceful shutdown ECHO
