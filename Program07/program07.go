@@ -61,17 +61,24 @@ func FindLinks(resp *http.Response, job chan string) {
 				txt, _ := s.Attr("title")
 				ProcessText(job, url, txt, ids)
 				writer.Write([]string{ids})
-				insertDB(db, ids, txt, url)
+				WriteToDatabase(db, ids, txt, url)
 			})
 		}
 	})
 }
 
-func insertDB(db *sql.DB, id string, title string, url string) {
+func WriteToDatabase(db *sql.DB, id string, title string, url string) {
+	// Delete the same id row if exists
+	del := "DELETE FROM article WHERE id = '" + id + "'"
+	_, err1 := db.Exec(del)
+	if err1 != nil {
+		log.Fatal(err1)
+	}
+
 	sql := "INSERT INTO article(id, title, url) VALUES ('" + id + "', '" + title + "', '" + url + "')"
-	_, err := db.Exec(sql)
-	if err != nil {
-		log.Fatal(err)
+	_, err2 := db.Exec(sql)
+	if err2 != nil {
+		log.Fatal(err2)
 	}
 }
 
