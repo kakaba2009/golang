@@ -263,14 +263,33 @@ func timerDownload(config ConfigFile, quit chan os.Signal) {
 	}
 }
 
-func GenerateHtml() {
-	csv, err := os.ReadFile("public/id_file.csv")
-	if err != nil {
-		fmt.Print(err)
-		return
+func GetIdsFromDatabase() []string {
+	db, err0 := sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
+	defer db.Close()
+	if err0 != nil {
+		log.Fatal(err0)
 	}
-	all_ids := string(csv)
-	ids := strings.Split(all_ids, "\n")
+
+	sql := "SELECT id FROM article"
+	res, err1 := db.Query(sql)
+	if err1 != nil {
+		log.Fatal(err1)
+	}
+
+	var ids []string
+	for res.Next() {
+		var id, title, url string
+		err2 := res.Scan(&id, &title, &url)
+		if err2 != nil {
+			log.Fatal(err2)
+		}
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+func GenerateHtml() {
+	ids := GetIdsFromDatabase()
 
 	html := `
 	<!DOCTYPE html>
