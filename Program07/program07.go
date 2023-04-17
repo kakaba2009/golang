@@ -29,6 +29,12 @@ type ConfigFile struct {
 	Interval int    `json:"interval"`
 }
 
+type Record struct {
+	Id    string
+	Title string
+	Url   string
+}
+
 func FindLinks(resp *http.Response, job chan string) {
 	fmt.Println("Start to find links ... ")
 	db, err0 := sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
@@ -278,12 +284,12 @@ func GetIdsFromDatabase() []string {
 
 	var ids []string
 	for res.Next() {
-		var id, title, url string
-		err2 := res.Scan(&id, &title, &url)
+		var row Record
+		err2 := res.Scan(&row.Id)
 		if err2 != nil {
 			log.Fatal(err2)
 		}
-		ids = append(ids, id)
+		ids = append(ids, row.Id)
 	}
 	return ids
 }
