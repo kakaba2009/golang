@@ -35,13 +35,8 @@ type Record struct {
 	Url   string
 }
 
-func FindLinks(resp *http.Response, job chan string) {
+func FindLinks(resp *http.Response, job chan string, db *sql.DB) {
 	fmt.Println("Start to find links ... ")
-	db, err0 := sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
-	defer db.Close()
-	if err0 != nil {
-		log.Fatal(err0)
-	}
 
 	file, err := os.Create("public/id_file.csv")
 	if err != nil {
@@ -170,7 +165,7 @@ func ReadSubPage(job chan string, dir string, config ConfigFile) {
 	}
 }
 
-func ReadMainPage(link string, dir string, config ConfigFile) {
+func ReadMainPage(link string, dir string, config ConfigFile, db *sql.DB) {
 	fmt.Println("ReadMainPage ... ")
 	job := make(chan string)
 
@@ -181,7 +176,7 @@ func ReadMainPage(link string, dir string, config ConfigFile) {
 	}
 
 	wg.Add(1)
-	go FindLinks(res, job)
+	go FindLinks(res, job, db)
 
 	threads := config.Threads
 	wg.Add(threads)
@@ -193,7 +188,7 @@ func ReadMainPage(link string, dir string, config ConfigFile) {
 	res.Body.Close()
 }
 
-func Download(config ConfigFile) {
+func Download(config ConfigFile, db *sql.DB) {
 	fmt.Println("Start to download ... ")
 	dir := "public"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
@@ -201,9 +196,9 @@ func Download(config ConfigFile) {
 	}
 	os.Create(dir + "/id_file.csv")
 
-	ReadMainPage(config.Url, dir, config)
+	ReadMainPage(config.Url, dir, config, db)
 	// Generate html index
-	GenerateHtml()
+	GenerateHtml(db)
 }
 
 func StartEcho() *echo.Echo {
@@ -239,11 +234,17 @@ func main() {
 	err = json.Unmarshal(conFile, &config)
 	fmt.Println(config)
 
+	db, err0 := sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
+	defer db.Close()
+	if err0 != nil {
+		log.Fatal(err0)
+	}
+
 	// Start Web Server
 	e := StartEcho()
 
 	// Below function blocks
-	timerDownload(config, quit)
+	timerDownload(config, quit, db)
 
 	//graceful shutdown ECHO
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -254,14 +255,14 @@ func main() {
 	fmt.Println("Exiting ECHO ...")
 }
 
-func timerDownload(config ConfigFile, quit chan os.Signal) {
+func timerDownload(config ConfigFile, quit chan os.Signal, db *sql.DB) {
 	defer fmt.Println("Exiting timer download")
 	ticker := time.NewTicker(time.Minute * time.Duration(config.Interval))
 	for {
 		select {
 		case t := <-ticker.C:
 			fmt.Println("Ticking at", t)
-			Download(config)
+			Download(config, db)
 		case <-quit:
 			fmt.Println("Received CTRL+C, exiting ...")
 			return
@@ -269,13 +270,7 @@ func timerDownload(config ConfigFile, quit chan os.Signal) {
 	}
 }
 
-func GetIdsFromDatabase() []string {
-	db, err0 := sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
-	defer db.Close()
-	if err0 != nil {
-		log.Fatal(err0)
-	}
-
+func GetIdsFromDatabase(db *sql.DB) []string {
 	sql := "SELECT id FROM article"
 	res, err1 := db.Query(sql)
 	if err1 != nil {
@@ -294,8 +289,8 @@ func GetIdsFromDatabase() []string {
 	return ids
 }
 
-func GenerateHtml() {
-	ids := GetIdsFromDatabase()
+func GenerateHtml(db *sql.DB) {
+	ids := GetIdsFromDatabase(db)
 
 	html := `
 	<!DOCTYPE html>
