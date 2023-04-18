@@ -1,4 +1,4 @@
-package main
+package Program07
 
 import (
 	"context"
@@ -213,15 +213,15 @@ func StartEcho() *echo.Echo {
 	return e
 }
 
-func main() {
+func Program07_Main(args []string) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
 	file := "config.json"
 
-	if len(os.Args) >= 2 {
+	if len(args) >= 2 {
 		// Use config file from command line
-		file = os.Args[1]
+		file = args[1]
 		fmt.Println("Use config file " + file)
 	}
 
