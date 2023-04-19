@@ -2,7 +2,6 @@ package program7
 
 import (
 	"context"
-	"crypto/md5"
 	"database/sql"
 	"encoding/csv"
 	"encoding/json"
@@ -106,13 +105,6 @@ func IsDownloaded(dir string, name string) bool {
 
 func fullName(dir string, name string) string {
 	return dir + "/" + name + ".txt"
-}
-
-func hashName(name string, dir string) string {
-	md5s := md5.Sum([]byte(name))
-	hash := fmt.Sprintf("%x", md5s)
-	full := dir + "/" + hash + ".txt"
-	return full
 }
 
 func WriteFile(dir string, name string, content string) {
