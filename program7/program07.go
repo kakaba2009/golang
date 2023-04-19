@@ -96,19 +96,19 @@ func ProcessText(job chan string, url string, title string, id string) {
 }
 
 func IsDownloaded(dir string, name string) bool {
-	full := fullName(dir, name)
+	full := FullName(dir, name)
 	if _, err := os.Stat(full); os.IsNotExist(err) {
 		return false
 	}
 	return true
 }
 
-func fullName(dir string, name string) string {
+func FullName(dir string, name string) string {
 	return dir + "/" + name + ".txt"
 }
 
 func WriteFile(dir string, name string, content string) {
-	full := fullName(dir, name)
+	full := FullName(dir, name)
 	f, err := os.Create(full)
 	if err != nil {
 		log.Fatal(err)
