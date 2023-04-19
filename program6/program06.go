@@ -188,15 +188,15 @@ func StartEcho() *echo.Echo {
 	return e
 }
 
-func Main(args []string) {
+func Main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
 	file := "program6/config.json"
 
-	if len(args) >= 2 {
+	if len(os.Args) >= 2 {
 		// Use config file from command line
-		file = args[1]
+		file = os.Args[1]
 		fmt.Println("Use config file " + file)
 	}
 
