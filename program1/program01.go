@@ -1,4 +1,4 @@
-package main
+package program01
 
 import (
 	"encoding/csv"
@@ -58,6 +58,6 @@ func ReadPage(link string) {
 	res.Body.Close()
 }
 
-func main() {
+func Main() {
 	ReadPage("https://www.secretchina.com")
 }
