@@ -1,4 +1,4 @@
-package main
+package program3
 
 import (
 	"crypto/md5"
@@ -147,7 +147,7 @@ func Download() {
 	ReadMainPage(hp, dir)
 }
 
-func main() {
+func Main() {
 	for {
 		Download()
 		fmt.Println("Sleep ...")
