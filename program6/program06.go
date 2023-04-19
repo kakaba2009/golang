@@ -192,7 +192,7 @@ func Main(args []string) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
-	file := "config.json"
+	file := "program6/config.json"
 
 	if len(args) >= 2 {
 		// Use config file from command line
