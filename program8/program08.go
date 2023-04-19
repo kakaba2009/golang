@@ -2,7 +2,6 @@ package program8
 
 import (
 	"context"
-	"crypto/md5"
 	"database/sql"
 	"encoding/csv"
 	"encoding/json"
@@ -20,7 +19,6 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/kakaba2009/golang/program7"
 	"github.com/kakaba2009/golang/program8/handler"
 	"github.com/labstack/echo/v4"
 )
@@ -116,13 +114,6 @@ func fullName(dir string, name string) string {
 	return dir + "/" + name + ".txt"
 }
 
-func hashName(name string, dir string) string {
-	md5s := md5.Sum([]byte(name))
-	hash := fmt.Sprintf("%x", md5s)
-	full := dir + "/" + hash + ".txt"
-	return full
-}
-
 func WriteFile(dir string, name string, content string) {
 	full := fullName(dir, name)
 	f, err := os.Create(full)
@@ -205,8 +196,6 @@ func Download(config ConfigFile, db *sql.DB) {
 	os.Create(dir + "/id_file.csv")
 
 	ReadMainPage(config.Url, dir, config, db)
-	// Generate html index
-	// GenerateHtml(db)
 }
 
 func Main(args []string) {
@@ -266,46 +255,12 @@ func timerDownload(config ConfigFile, quit chan os.Signal, db *sql.DB) {
 	}
 }
 
-func GenerateHtml(db *sql.DB) {
-	ids := program7.GetIdsFromDatabase(db)
-
-	html := `
-	<!DOCTYPE html>
-	<html>
-	<head>
-	<title>ECHO Web Server</title>
-	</head>
-	<body>
-	<h1>Article</h1>`
-
-	for i := 0; i < len(ids); i++ {
-		if ids[i] != "" {
-			html += "<li><a href=" + ids[i] + ".txt>" + ids[i] + "</a></li>"
-		}
-	}
-
-	html += `</body>
-	</html>`
-
-	f, err := os.Create("public/index.html")
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	defer f.Close()
-	_, err2 := f.WriteString(html)
-	if err2 != nil {
-		log.Fatal(err2)
-	}
-}
-
 func StartEcho() *echo.Echo {
 	e := echo.New()
 	e.Renderer = &TemplateRegistry{
 		templates: template.Must(template.ParseGlob("public/*.html")),
 	}
 
-	// Named route "golang"
 	e.GET("/", handler.HomeHandler)
 	e.Static("/public", "public")
 	// Start server
