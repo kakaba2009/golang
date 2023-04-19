@@ -1,4 +1,4 @@
-package program02
+package program2
 
 import (
 	"crypto/md5"

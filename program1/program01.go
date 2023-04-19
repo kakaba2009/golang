@@ -1,4 +1,4 @@
-package program01
+package program1
 
 import (
 	"encoding/csv"
