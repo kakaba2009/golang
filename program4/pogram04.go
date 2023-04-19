@@ -164,14 +164,14 @@ func saveJson() {
 	if err != nil {
 		fmt.Print(err)
 	}
-	os.WriteFile("config.json", b, 0755)
+	os.WriteFile("program4/config.json", b, 0755)
 }
 
 func Main() {
 	pwd, _ := os.Getwd()
 	fmt.Println(pwd)
 
-	file := "config.json"
+	file := "program4/config.json"
 
 	if len(os.Args) >= 2 {
 		// Use config file from command line
