@@ -7,5 +7,5 @@ import (
 )
 
 func main() {
-	program8.Program08_Main(os.Args)
+	program8.Main(os.Args)
 }

@@ -1,11 +1,19 @@
-{{define "index.html"}}
-  <!DOCTYPE html>
-  <html>
-    <head>
-      <title>Boatswain Blog | {{index . "name"}}</title>
-    </head>
-    <body>
-      <h1>{{index . "msg"}}</h1>
-    </body>
-  </html>
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<title>ECHO Web Server</title>
+</head>
+
+<body>
+
+<h1>Article</h1>
+
+{{range  .ArticleList}}
+   <li><a href={{ . }}.txt>{{.}}</a></li>
 {{end}}
+
+</body>
+
+</html>

@@ -7,7 +7,6 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -21,8 +20,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kakaba2009/golang/program7"
-	"github.com/kakaba2009/golang/program8/handler"
-	"github.com/labstack/echo/v4"
 )
 
 var wg sync.WaitGroup
@@ -209,7 +206,7 @@ func Download(config ConfigFile, db *sql.DB) {
 	GenerateHtml(db)
 }
 
-func Program08_Main(args []string) {
+func Main(args []string) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
@@ -237,17 +234,14 @@ func Program08_Main(args []string) {
 	}
 
 	// Start Web Server
-	e := StartEcho()
+	StartEcho()
 
 	// Below function blocks
 	timerDownload(config, quit, db)
 
 	//graceful shutdown ECHO
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	_, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := e.Shutdown(ctx); err != nil {
-		e.Logger.Fatal(err)
-	}
 	fmt.Println("Exiting ECHO ...")
 }
 
@@ -299,26 +293,20 @@ func GenerateHtml(db *sql.DB) {
 	}
 }
 
-func StartEcho() *echo.Echo {
-	e := echo.New()
-	e.Renderer = &TemplateRegistry{
-		templates: template.Must(template.ParseGlob("public/*.html")),
+func StartEcho() {
+	http.HandleFunc("/", readArticle)
+
+	if err := http.ListenAndServe("localhost:8000", nil); err != nil {
+		panic(err)
 	}
-
-	// Named route "golang"
-	e.GET("/", handler.HomeHandler)
-
-	// e.Static("/", "public")
-	// Start server
-	go func() {
-		if err := e.Start(":8000"); err != nil && err != http.ErrServerClosed {
-			e.Logger.Fatal("shutting down ECHO server")
-		}
-	}()
-
-	return e
 }
 
-func (t *TemplateRegistry) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
-	return t.templates.ExecuteTemplate(w, name, data)
+func readArticle(w http.ResponseWriter, r *http.Request) {
+	tmpl, err := template.ParseFiles("./public/index.html")
+	if err != nil {
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	err = tmpl.Execute(w, "test")
 }
