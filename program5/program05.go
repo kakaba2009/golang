@@ -183,7 +183,7 @@ func Main() {
 	pwd, _ := os.Getwd()
 	fmt.Println(pwd)
 
-	file := "config.json"
+	file := "program5/config.json"
 
 	if len(os.Args) >= 2 {
 		// Use config file from command line
