@@ -1,4 +1,4 @@
-package main
+package program5
 
 import (
 	"crypto/md5"
@@ -179,7 +179,7 @@ func StartEcho() {
 	e.Logger.Fatal(e.Start(":8000"))
 }
 
-func main() {
+func Main() {
 	pwd, _ := os.Getwd()
 	fmt.Println(pwd)
 
