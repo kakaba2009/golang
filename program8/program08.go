@@ -7,6 +7,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -20,6 +21,8 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kakaba2009/golang/program7"
+	"github.com/kakaba2009/golang/program8/handler"
+	"github.com/labstack/echo/v4"
 )
 
 var wg sync.WaitGroup
@@ -203,7 +206,7 @@ func Download(config ConfigFile, db *sql.DB) {
 
 	ReadMainPage(config.Url, dir, config, db)
 	// Generate html index
-	GenerateHtml(db)
+	// GenerateHtml(db)
 }
 
 func Main(args []string) {
@@ -234,14 +237,17 @@ func Main(args []string) {
 	}
 
 	// Start Web Server
-	StartEcho()
+	e := StartEcho()
 
 	// Below function blocks
 	timerDownload(config, quit, db)
 
 	//graceful shutdown ECHO
-	_, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if err := e.Shutdown(ctx); err != nil {
+		e.Logger.Fatal(err)
+	}
 	fmt.Println("Exiting ECHO ...")
 }
 
@@ -293,20 +299,25 @@ func GenerateHtml(db *sql.DB) {
 	}
 }
 
-func StartEcho() {
-	http.HandleFunc("/", readArticle)
-
-	if err := http.ListenAndServe("localhost:8000", nil); err != nil {
-		panic(err)
+func StartEcho() *echo.Echo {
+	e := echo.New()
+	e.Renderer = &TemplateRegistry{
+		templates: template.Must(template.ParseGlob("public/*.html")),
 	}
+
+	// Named route "golang"
+	e.GET("/", handler.HomeHandler)
+	e.Static("/public", "public")
+	// Start server
+	go func() {
+		if err := e.Start(":8000"); err != nil && err != http.ErrServerClosed {
+			e.Logger.Fatal("shutting down ECHO server")
+		}
+	}()
+
+	return e
 }
 
-func readArticle(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles("./public/index.html")
-	if err != nil {
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	err = tmpl.Execute(w, "test")
+func (t *TemplateRegistry) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
+	return t.templates.ExecuteTemplate(w, name, data)
 }

@@ -8,10 +8,10 @@
 
 <body>
 
-<h1>Article</h1>
+<h1>{{.Title}}</h1>
 
 {{range  .ArticleList}}
-   <li><a href={{ . }}.txt>{{.}}</a></li>
+   <li><a href=public/{{ . }}.txt>{{.}}</a></li>
 {{end}}
 
 </body>
