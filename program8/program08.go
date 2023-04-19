@@ -3,7 +3,6 @@ package program8
 import (
 	"context"
 	"database/sql"
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -44,15 +43,6 @@ type TemplateRegistry struct {
 
 func FindLinks(resp *http.Response, job chan string, db *sql.DB) {
 	fmt.Println("Start to find links ... ")
-
-	file, err := os.Create("public/id_file.csv")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
-	writer := csv.NewWriter(file)
-	defer writer.Flush()
-
 	defer close(job)
 	defer wg.Done()
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
@@ -68,7 +58,6 @@ func FindLinks(resp *http.Response, job chan string, db *sql.DB) {
 				url, _ := s.Attr("href")
 				txt, _ := s.Attr("title")
 				ProcessText(job, url, txt, ids)
-				writer.Write([]string{ids})
 				WriteToDatabase(db, ids, txt, url)
 			})
 		}
@@ -93,7 +82,7 @@ func WriteToDatabase(db *sql.DB, id string, title string, url string) {
 func ProcessText(job chan string, url string, title string, id string) {
 	fmt.Println("ProcessText ... ")
 	// Ignore other web page url links
-	if strings.Contains(url, "http:") || strings.Contains(url, "https:") || strings.HasPrefix(url, "#") {
+	if strings.Contains(url, "http:") || strings.Contains(url, "https:") {
 		return
 	}
 	if strings.TrimSpace(title) != "" && strings.TrimSpace(url) != "" {
@@ -178,11 +167,10 @@ func ReadMainPage(link string, dir string, config ConfigFile, db *sql.DB) {
 
 func Download(config ConfigFile, db *sql.DB) {
 	fmt.Println("Start to download ... ")
-	dir := "public"
+	dir := "program8/public"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
 	}
-	os.Create(dir + "/id_file.csv")
 
 	ReadMainPage(config.Url, dir, config, db)
 }
@@ -191,7 +179,7 @@ func Main(args []string) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
-	file := "config.json"
+	file := "program8/config.json"
 
 	if len(args) >= 2 {
 		// Use config file from command line
@@ -247,11 +235,11 @@ func timerDownload(config ConfigFile, quit chan os.Signal, db *sql.DB) {
 func StartEcho() *echo.Echo {
 	e := echo.New()
 	e.Renderer = &TemplateRegistry{
-		templates: template.Must(template.ParseGlob("public/*.html")),
+		templates: template.Must(template.ParseGlob("program8/public/*.html")),
 	}
 
 	e.GET("/", handler.HomeHandler)
-	e.Static("/public", "public")
+	e.Static("/public", "program8/public")
 	// Start server
 	go func() {
 		if err := e.Start(":8000"); err != nil && err != http.ErrServerClosed {
