@@ -1,4 +1,4 @@
-package main
+package program4
 
 import (
 	"crypto/md5"
@@ -167,7 +167,7 @@ func saveJson() {
 	os.WriteFile("config.json", b, 0755)
 }
 
-func main() {
+func Main() {
 	pwd, _ := os.Getwd()
 	fmt.Println(pwd)
 
