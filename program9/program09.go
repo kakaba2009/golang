@@ -24,8 +24,6 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-var wg sync.WaitGroup
-
 type ConfigFile struct {
 	Url      string `json:"url"`
 	Threads  int    `json:"threads"`
@@ -36,7 +34,7 @@ type TemplateRegistry struct {
 	templates *template.Template
 }
 
-func ReadSubPage(job chan string, dir string, config ConfigFile) {
+func ReadSubPage(job chan string, dir string, config ConfigFile, wg *sync.WaitGroup) {
 	fmt.Println("ReadSubPage ... ")
 	defer wg.Done()
 	for data := range job {
@@ -70,7 +68,7 @@ func ReadSubPage(job chan string, dir string, config ConfigFile) {
 	}
 }
 
-func ReadMainPage(link string, dir string, config ConfigFile, db *sql.DB) {
+func ReadMainPage(link string, dir string, config ConfigFile, db *sql.DB, wg *sync.WaitGroup) {
 	fmt.Println("ReadMainPage ... ")
 	job := make(chan string)
 
@@ -81,29 +79,31 @@ func ReadMainPage(link string, dir string, config ConfigFile, db *sql.DB) {
 	}
 
 	wg.Add(1)
-	go program8.FindLinks(res, job, db)
+	go program8.FindLinks(res, job, db, wg)
 
 	threads := config.Threads
 	wg.Add(threads)
 	for i := 1; i <= threads; i++ {
-		go ReadSubPage(job, dir, config)
+		go ReadSubPage(job, dir, config, wg)
 	}
 
 	wg.Wait()
 	res.Body.Close()
 }
 
-func Download(config ConfigFile, db *sql.DB) {
+func Download(config ConfigFile, db *sql.DB, wg *sync.WaitGroup) {
 	fmt.Println("Start to download ... ")
 	dir := "program9/public"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
 	}
 
-	ReadMainPage(config.Url, dir, config, db)
+	ReadMainPage(config.Url, dir, config, db, wg)
 }
 
 func Main() {
+	var wg sync.WaitGroup
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
@@ -134,7 +134,7 @@ func Main() {
 	e := StartEcho()
 
 	// Below function blocks
-	timerDownload(config, quit, db)
+	timerDownload(config, quit, db, &wg)
 
 	//graceful shutdown ECHO
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -145,14 +145,14 @@ func Main() {
 	fmt.Println("Exiting ECHO ...")
 }
 
-func timerDownload(config ConfigFile, quit chan os.Signal, db *sql.DB) {
+func timerDownload(config ConfigFile, quit chan os.Signal, db *sql.DB, wg *sync.WaitGroup) {
 	defer fmt.Println("Exiting timer download")
 	ticker := time.NewTicker(time.Minute * time.Duration(config.Interval))
 	for {
 		select {
 		case t := <-ticker.C:
 			fmt.Println("Ticking at", t)
-			Download(config, db)
+			Download(config, db, wg)
 		case <-quit:
 			fmt.Println("Received CTRL+C, exiting ...")
 			return
