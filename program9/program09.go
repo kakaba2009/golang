@@ -19,6 +19,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kakaba2009/golang/program7"
+	"github.com/kakaba2009/golang/program8"
 	"github.com/kakaba2009/golang/program9/handler"
 	"github.com/labstack/echo/v4"
 )
@@ -39,73 +40,6 @@ type Record struct {
 
 type TemplateRegistry struct {
 	templates *template.Template
-}
-
-func FindLinks(resp *http.Response, job chan string, db *sql.DB) {
-	fmt.Println("Start to find links ... ")
-	defer close(job)
-	defer wg.Done()
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	doc.Find("li").Each(func(i int, s *goquery.Selection) {
-		ids, _ := s.Attr("id")
-		if ids != "" {
-			s.Find("a").Each(func(i int, s *goquery.Selection) {
-				url, _ := s.Attr("href")
-				txt, _ := s.Attr("title")
-				ProcessText(job, url, txt, ids)
-				WriteToDatabase(db, ids, txt, url)
-			})
-		}
-	})
-}
-
-func WriteToDatabase(db *sql.DB, id string, title string, url string) {
-	// Delete the same id row if exists
-	del := "DELETE FROM article WHERE id = '" + id + "'"
-	_, err1 := db.Exec(del)
-	if err1 != nil {
-		log.Fatal(err1)
-	}
-
-	sql := "INSERT INTO article(id, title, url) VALUES ('" + id + "', '" + title + "', '" + url + "')"
-	_, err2 := db.Exec(sql)
-	if err2 != nil {
-		log.Fatal(err2)
-	}
-}
-
-func ProcessText(job chan string, url string, title string, id string) {
-	fmt.Println("ProcessText ... ")
-	// Ignore other web page url links
-	if strings.Contains(url, "http:") || strings.Contains(url, "https:") {
-		return
-	}
-	if strings.TrimSpace(title) != "" && strings.TrimSpace(url) != "" {
-		jobData := url + "|" + title + "|" + id
-		job <- jobData
-		fmt.Println(jobData)
-	}
-}
-
-func WriteFile(dir string, name string, content string) {
-	full := program7.FullName(dir, name)
-	f, err := os.Create(full)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	defer f.Close()
-
-	_, err2 := f.WriteString(content)
-	if err2 != nil {
-		log.Fatal(err2)
-	}
-	fmt.Println("WriteFile done")
 }
 
 func ReadSubPage(job chan string, dir string, config ConfigFile) {
@@ -134,7 +68,7 @@ func ReadSubPage(job chan string, dir string, config ConfigFile) {
 			continue
 		}
 		content := doc.Find("p").Text()
-		WriteFile(dir, name, string(content))
+		program8.WriteFile(dir, name, string(content))
 		res.Body.Close()
 		if err != nil {
 			log.Fatal(err)
@@ -153,7 +87,7 @@ func ReadMainPage(link string, dir string, config ConfigFile, db *sql.DB) {
 	}
 
 	wg.Add(1)
-	go FindLinks(res, job, db)
+	go program8.FindLinks(res, job, db)
 
 	threads := config.Threads
 	wg.Add(threads)
