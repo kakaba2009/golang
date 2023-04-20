@@ -32,12 +32,6 @@ type ConfigFile struct {
 	Interval int    `json:"interval"`
 }
 
-type Record struct {
-	Id    string
-	Title string
-	Url   string
-}
-
 type TemplateRegistry struct {
 	templates *template.Template
 }
