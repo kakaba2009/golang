@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<title>ECHO Web Server</title>
+</head>
+
+<body>
+
+<h1>{{.Title}}</h1>
+
+{{range  .ArticleList}}
+   <li><a href=public/{{ . }}.txt>{{.}}</a></li>
+{{end}}
+
+</body>
+
+</html>
