@@ -216,34 +216,34 @@ func GetArticles(c echo.Context) error {
 	return nil
 }
 
-func DeleteArticleFromDatabase(db *sql.DB, id string) (Article, error) {
-	sql := "SELECT id, title FROM article WHERE id ='" + id + "'"
+func DeleteArticleFromDatabase(db *sql.DB, id string) (string, error) {
+	sql := "SELECT title FROM golang.article WHERE id ='" + id + "'"
 	res := db.QueryRow(sql)
 
 	var row Article
-	res.Scan(&row.Id, &row.Title)
+	res.Scan(&row.Title)
 
-	del := "DELETE FROM article WHERE id = '" + id + "'"
+	del := "DELETE FROM golang.article WHERE id = '" + id + "'"
 	_, err2 := db.Exec(del)
 	if err2 != nil {
 		log.Fatal(err2)
-		return row, err2
+		return row.Title, err2
 	}
 
-	return row, nil
+	return row.Title, nil
 }
 
 func DeleteArticle(c echo.Context) error {
 	id := c.Param("id")
-	article, err := DeleteArticleFromDatabase(db, id)
+	title, err := DeleteArticleFromDatabase(db, id)
 	if err != nil {
 		return c.JSON(http.StatusNotAcceptable, err.Error())
 	}
-	return c.JSON(http.StatusOK, article)
+	return c.JSON(http.StatusOK, title)
 }
 
 func UpdateArticleFromDatabase(db *sql.DB, id string, a Article) (Article, error) {
-	sql := "UPDATE article SET title = '" + a.Title + "' WHERE id ='" + id + "'"
+	sql := "UPDATE golang.article SET title = '" + a.Title + "' WHERE id ='" + id + "'"
 	res, err := db.Exec(sql)
 	row, _ := res.RowsAffected()
 	fmt.Println("Rows affected " + strconv.FormatInt(row, 10))
