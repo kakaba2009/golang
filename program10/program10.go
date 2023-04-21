@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -16,16 +17,22 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kakaba2009/golang/program7"
 	"github.com/kakaba2009/golang/program8"
+	"github.com/kakaba2009/golang/program9/handler"
+	"github.com/labstack/echo/v4"
 )
 
 type ConfigFile struct {
 	Url      string `json:"url"`
 	Threads  int    `json:"threads"`
 	Interval int    `json:"interval"`
+}
+
+type ArticleData struct {
+	Title       string
+	ArticleList []string
 }
 
 type TemplateRegistry struct {
@@ -128,15 +135,18 @@ func Main() {
 	defer db.Close()
 
 	// Start Web Server
-	StartWebServer()
+	e := StartWebServer()
 
 	// Below function blocks
 	timerDownload(config, quit, db, &wg)
 
-	//graceful shutdown Web Server
-	_, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	//graceful shutdown ECHO
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	fmt.Println("Exiting Web Server ...")
+	if err := e.Shutdown(ctx); err != nil {
+		e.Logger.Fatal(err)
+	}
+	fmt.Println("Exiting ECHO ...")
 }
 
 func timerDownload(config ConfigFile, quit chan os.Signal, db *sql.DB, wg *sync.WaitGroup) {
@@ -154,14 +164,32 @@ func timerDownload(config ConfigFile, quit chan os.Signal, db *sql.DB, wg *sync.
 	}
 }
 
-func StartWebServer() {
-	router := gin.Default()
-	router.GET("/articles", getArticles)
-	router.Run("localhost:8000")
+func StartWebServer() *echo.Echo {
+	e := echo.New()
+	e.Renderer = &TemplateRegistry{
+		templates: template.Must(template.ParseGlob("program10/public/*.html")),
+	}
+
+	e.GET("/", handler.CookieHandler)
+	e.GET("/articles", GetArticles)
+	e.Static("/public", "program10/public")
+	// Start server
+	go func() {
+		if err := e.Start(":8000"); err != nil && err != http.ErrServerClosed {
+			e.Logger.Fatal("shutting down ECHO server")
+		}
+	}()
+
+	return e
 }
 
-// getArticles responds with the list of all articles as JSON.
-func getArticles(c *gin.Context) {
+func (t *TemplateRegistry) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
+	return t.templates.ExecuteTemplate(w, name, data)
+}
+
+// GetArticles responds with the list of all articles as JSON.
+func GetArticles(c echo.Context) error {
 	ids := program7.GetIdsFromDatabase(db)
-	c.IndentedJSON(http.StatusOK, ids)
+	c.JSON(http.StatusOK, ids)
+	return nil
 }
