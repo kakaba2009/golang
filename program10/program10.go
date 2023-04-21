@@ -172,6 +172,7 @@ func StartWebServer() *echo.Echo {
 
 	e.GET("/", handler.CookieHandler)
 	e.GET("/articles", GetArticles)
+	e.DELETE("/articles/:id", DeleteArticle)
 	e.Static("/public", "program10/public")
 	// Start server
 	go func() {
@@ -211,4 +212,30 @@ func GetArticles(c echo.Context) error {
 	articles := GetArticlesFromDatabase(db)
 	c.JSON(http.StatusOK, articles)
 	return nil
+}
+
+func DeleteArticleFromDatabase(db *sql.DB, id string) (Article, error) {
+	sql := "SELECT id, title FROM article WHERE id ='" + id + "'"
+	res := db.QueryRow(sql)
+
+	var row Article
+	res.Scan(&row.Id, &row.Title)
+
+	del := "DELETE FROM article WHERE id = '" + id + "'"
+	_, err2 := db.Exec(del)
+	if err2 != nil {
+		log.Fatal(err2)
+		return row, err2
+	}
+
+	return row, nil
+}
+
+func DeleteArticle(c echo.Context) error {
+	id := c.Param("id")
+	article, err := DeleteArticleFromDatabase(db, id)
+	if err != nil {
+		return c.JSON(http.StatusNotAcceptable, err.Error())
+	}
+	return c.JSON(http.StatusOK, article)
 }
