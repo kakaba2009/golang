@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -173,6 +174,7 @@ func StartWebServer() *echo.Echo {
 	e.GET("/", handler.CookieHandler)
 	e.GET("/articles", GetArticles)
 	e.DELETE("/articles/:id", DeleteArticle)
+	e.POST("/articles/:id", UpdateArticle)
 	e.Static("/public", "program10/public")
 	// Start server
 	go func() {
@@ -234,6 +236,28 @@ func DeleteArticleFromDatabase(db *sql.DB, id string) (Article, error) {
 func DeleteArticle(c echo.Context) error {
 	id := c.Param("id")
 	article, err := DeleteArticleFromDatabase(db, id)
+	if err != nil {
+		return c.JSON(http.StatusNotAcceptable, err.Error())
+	}
+	return c.JSON(http.StatusOK, article)
+}
+
+func UpdateArticleFromDatabase(db *sql.DB, id string, a Article) (Article, error) {
+	sql := "UPDATE article SET title = '" + a.Title + "' WHERE id ='" + id + "'"
+	res, err := db.Exec(sql)
+	row, _ := res.RowsAffected()
+	fmt.Println("Rows affected " + strconv.FormatInt(row, 10))
+	return a, err
+}
+
+func UpdateArticle(c echo.Context) error {
+	id := c.Param("id")
+	var objRequest Article
+	if err := c.Bind(&objRequest); err != nil {
+		log.Println(err)
+		return c.JSON(http.StatusBadRequest, err.Error())
+	}
+	article, err := UpdateArticleFromDatabase(db, id, objRequest)
 	if err != nil {
 		return c.JSON(http.StatusNotAcceptable, err.Error())
 	}
