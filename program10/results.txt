@@ -1,4 +1,19 @@
 curl http://localhost:8000/articles
 [{"id":"bktoppic0","title":"大迦叶为何选择在云南大理等待弥勒佛(图)"},{"id":"bktoppic1","title":"日本男性：听女人说这四句话会 立即分手(图)"},{"id":"bktoppic2","title":"13个宰人的“旅游地”一定要长点心(组图)"},{"id":"bktoppic3","title":"外星生命的证据 陨石残骸坠落美加边界(组图)"},{"id":"bktoppic4","title":"中共情报机构偏好色诱“石榴裙下命难逃”(图)"},{"id":"bktoppic5","title":"染发会罹癌或肝硬化医师：不可不慎(图)"},{"id":"toppic0","title":"美联储发布经济褐皮书就业问题最引人关注(图)"},{"id":"toppic1","title":"被秋后算账习近平与刘亚洲夫妇秘闻曝光(图)"},{"id":"toppic10","title":"俄乌战争后首次北约秘书长突访乌克兰(图视频)"},{"id":"toppic11","title":"外星生命的证据陨石残骸坠落美加边界(组图)"},{"id":"toppic2","title":"“两岸开战代价高”美众院中共犯台兵推结果曝光(图)"},{"id":"toppic3","title":"大迦叶为何选择在云南大理等待弥勒佛(图)"},{"id":"toppic4","title":"港妈深圳买菜 网民提出六点质疑(图)"},{"id":"toppic5","title":"台湾八旗文化总编爆上海被抓过去经历受瞩目(图)"},{"id":"toppic6","title":"万众 瞩目SpaceX最大火箭成功升空后爆炸(图)"},{"id":"toppic7","title":"日本男性：听女人说这四句话会立即分手(图)"},{"id":"toppic8","title":"极其罕见的混合日蚀惊现 天文学家：太震撼了(视频图)"},{"id":"toppic9","title":"13个宰人的“旅游地”一定要长点心(组图)"}]
 
-curl http://localhost:8000/articles/topic0 --include --header "Content-Type: application/json" --request "POST" --data '{"id": "topic0","title": "000"}'
+
+curl -X DELETE http://localhost:8000/articles/topic0
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100    21    0    21    0     0      0      0 --:--:--  0:00:25 --:--:--     5{"id":"","title":""}
+
+
+curl --include --header "Content-Type: application/json" --request "POST" --data '{"id": "topic1","title": "abc"}' http://localhost:8000/articles/topic1
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100    61  100    30  100    31      1      1  0:00:31  0:00:25  0:00:06     7HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+Date: Fri, 21 Apr 2023 13:18:05 GMT
+Content-Length: 30
+
+{"id":"topic1","title":"abc"}
