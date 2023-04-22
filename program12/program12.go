@@ -51,7 +51,6 @@ type jwtCustomClaims struct {
 var db *sql.DB
 var ctx = context.Background()
 var rdb *redis.Client
-var tkn string
 var myKey = []byte("secret_key")
 
 func init() {
@@ -413,16 +412,16 @@ func LoginHandler(c echo.Context) error {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	// Generate encoded token and send it as response.
-	tkn, _ = token.SignedString(myKey)
+	tkn, _ := token.SignedString(myKey)
 	fmt.Print("token ", tkn)
 
 	// Set JWT token in client cookie
-	SetTokenCookie(c)
+	SetTokenCookie(c, tkn)
 
 	return c.Redirect(http.StatusMovedPermanently, "/home")
 }
 
-func SetTokenCookie(c echo.Context) {
+func SetTokenCookie(c echo.Context, tkn string) {
 	cookie := new(http.Cookie)
 	cookie.Name = "token"
 	cookie.Value = tkn
