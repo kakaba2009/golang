@@ -47,6 +47,7 @@ var db *sql.DB
 var ctx = context.Background()
 var rdb *redis.Client
 var tkn string
+var myKey = []byte("secret_key")
 
 func init() {
 	rdb = redis.NewClient(&redis.Options{
@@ -414,7 +415,7 @@ func LoginHandler(c echo.Context) error {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	// Generate encoded token and send it as response.
-	tkn, _ = token.SignedString([]byte(password))
+	tkn, _ = token.SignedString(myKey)
 	fmt.Print("token ", tkn)
 
 	// Set JWT token in client cookie
