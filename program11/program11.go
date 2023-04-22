@@ -21,7 +21,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kakaba2009/golang/program7"
 	"github.com/kakaba2009/golang/program8"
-	"github.com/kakaba2009/golang/program9/handler"
+	"github.com/kakaba2009/golang/program11/redishandler" 
 	"github.com/labstack/echo/v4"
 	"github.com/redis/go-redis/v9"
 )
@@ -182,7 +182,7 @@ func StartWebServer() *echo.Echo {
 		templates: template.Must(template.ParseGlob("program11/public/*.html")),
 	}
 
-	e.GET("/", handler.CookieHandler)
+	e.GET("/", redishandler.RedisHandler)
 	e.GET("/articles", GetArticles)
 	e.DELETE("/articles/:id", DeleteArticle)
 	e.POST("/articles/:id", UpdateArticle)
