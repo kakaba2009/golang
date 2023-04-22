@@ -43,6 +43,11 @@ type TemplateRegistry struct {
 	templates *template.Template
 }
 
+type jwtCustomClaims struct {
+	Name string `json:"name"`
+	jwt.RegisteredClaims
+}
+
 var db *sql.DB
 var ctx = context.Background()
 var rdb *redis.Client
@@ -355,7 +360,7 @@ type ArticleData struct {
 func RedisHandler(c echo.Context) error {
 	token := GetTokenCookie(c)
 	// If client token cookie not valid, redirect to login page
-	if token != tkn {
+	if !IsValidateToken(token) {
 		return c.Redirect(http.StatusMovedPermanently, "/")
 	}
 	ids := GetIdsFromRedis(db)
@@ -385,11 +390,6 @@ func PeriodicUpdateRedis(db *sql.DB) {
 	// Update redis in-memory data
 	json2, _ := json.Marshal(ids)
 	rdb.Set(ctx, "ids", json2, 0)
-}
-
-type jwtCustomClaims struct {
-	Name string `json:"name"`
-	jwt.RegisteredClaims
 }
 
 func LoginHandler(c echo.Context) error {
@@ -466,10 +466,25 @@ func RootHandler(c echo.Context) error {
 func ArticleHandler(c echo.Context) error {
 	token := GetTokenCookie(c)
 	// If client token cookie not valid, redirect to login page
-	if token != tkn {
+	if !IsValidateToken(token) {
 		return c.Redirect(http.StatusMovedPermanently, "/")
 	}
 	// Please note the the second parameter "index.html" is the template name and should
 	// be equal to the value stated in the {{ define }} statement in "public/index.html"
 	return c.File("program12/" + c.Request().RequestURI)
+}
+
+func IsValidateToken(token string) bool {
+	claims := &jwtCustomClaims{}
+
+	tknObj, err := jwt.ParseWithClaims(token, claims,
+		func(t *jwt.Token) (interface{}, error) {
+			return myKey, nil
+		})
+
+	if err != nil {
+		return false
+	}
+
+	return tknObj.Valid
 }
