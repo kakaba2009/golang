@@ -437,17 +437,6 @@ func GetTokenCookie(c echo.Context) string {
 	return cookie.Value
 }
 
-func accessible(c echo.Context) error {
-	return c.String(http.StatusOK, "Accessible")
-}
-
-func restricted(c echo.Context) error {
-	user := c.Get("user").(*jwt.Token)
-	claims := user.Claims.(*jwtCustomClaims)
-	name := claims.Name
-	return c.String(http.StatusOK, "Welcome "+name+"!")
-}
-
 func RootHandler(c echo.Context) error {
 	ip := cookiehandler.CheckClientCookie(c)
 	// If client cookie does not have IP, then set cookie
