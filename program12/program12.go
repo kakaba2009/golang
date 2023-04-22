@@ -53,6 +53,11 @@ var ctx = context.Background()
 var rdb *redis.Client
 var myKey = []byte("secret_key")
 
+var savedPwd = map[string]string{
+	"john": "hello!",
+	"bill": "morning",
+}
+
 func init() {
 	rdb = redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
@@ -395,8 +400,11 @@ func LoginHandler(c echo.Context) error {
 	username := c.FormValue("username")
 	password := c.FormValue("password")
 
-	// Throws unauthorized error
-	if username != "john" || password != "hello!" {
+	pwd, found := savedPwd[username]
+	if found == false {
+		return echo.ErrUnauthorized
+	}
+	if password != pwd {
 		return echo.ErrUnauthorized
 	}
 
