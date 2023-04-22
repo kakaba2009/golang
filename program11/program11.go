@@ -150,7 +150,7 @@ func Main() {
 	e := StartWebServer()
 
 	// Below function blocks
-	timerDownload(config, quit, db, &wg)
+	PeriodicAction(config, quit, db, &wg)
 
 	//graceful shutdown ECHO
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -161,7 +161,7 @@ func Main() {
 	fmt.Println("Exiting ECHO ...")
 }
 
-func timerDownload(config ConfigFile, quit chan os.Signal, db *sql.DB, wg *sync.WaitGroup) {
+func PeriodicAction(config ConfigFile, quit chan os.Signal, db *sql.DB, wg *sync.WaitGroup) {
 	defer fmt.Println("Exiting timer download")
 	ticker := time.NewTicker(time.Minute * time.Duration(config.Interval))
 	for {
@@ -169,6 +169,7 @@ func timerDownload(config ConfigFile, quit chan os.Signal, db *sql.DB, wg *sync.
 		case t := <-ticker.C:
 			fmt.Println("Ticking at", t)
 			Download(config, db, wg)
+			PeriodicUpdateRedis(db)
 		case <-quit:
 			fmt.Println("Received CTRL+C, exiting ...")
 			return
@@ -352,4 +353,24 @@ func RedisHandler(c echo.Context) error {
 		Title:       "Article",
 		ArticleList: ids,
 	})
+}
+
+func PeriodicUpdateRedis(db *sql.DB) {
+	var data []Article
+
+	data = GetArticlesFromDatabase(db)
+	// Update redis in-memory data
+	json1, err := json.Marshal(data)
+	if err != nil {
+		fmt.Println(err)
+	}
+	err = rdb.Set(ctx, "articles", json1, 0).Err()
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	ids := program7.GetIdsFromDatabase(db)
+	// Update redis in-memory data
+	json2, _ := json.Marshal(ids)
+	rdb.Set(ctx, "ids", json2, 0)
 }
