@@ -194,7 +194,8 @@ func StartWebServer() *echo.Echo {
 
 	// Login route
 	e.POST("/login", login)
-	e.GET("/", RedisHandler)
+	e.File("/", "program12/public/login.html")
+	// e.GET("/", RedisHandler)
 	e.GET("/articles", GetArticles)
 	e.DELETE("/articles/:id", DeleteArticle)
 	e.POST("/articles/:id", UpdateArticle)
