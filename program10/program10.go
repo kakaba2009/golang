@@ -21,7 +21,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kakaba2009/golang/program7"
 	"github.com/kakaba2009/golang/program8"
-	"github.com/kakaba2009/golang/program9/handler"
+	"github.com/kakaba2009/golang/program9/cookiehandler"
 	"github.com/labstack/echo/v4"
 )
 
@@ -171,7 +171,7 @@ func StartWebServer() *echo.Echo {
 		templates: template.Must(template.ParseGlob("program10/public/*.html")),
 	}
 
-	e.GET("/", handler.CookieHandler)
+	e.GET("/", cookiehandler.CookieHandler)
 	e.GET("/articles", GetArticles)
 	e.DELETE("/articles/:id", DeleteArticle)
 	e.POST("/articles/:id", UpdateArticle)
