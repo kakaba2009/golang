@@ -112,7 +112,7 @@ func ReadMainPage(link string, dir string, config ConfigFile, db *sql.DB, wg *sy
 
 func Download(config ConfigFile, db *sql.DB, wg *sync.WaitGroup) {
 	fmt.Println("Start to download ... ")
-	dir := "program10/public"
+	dir := "program11/public"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
 	}
@@ -126,7 +126,7 @@ func Main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
-	file := "program10/config.json"
+	file := "program11/config.json"
 
 	if len(os.Args) >= 2 {
 		// Use config file from command line
