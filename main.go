@@ -1,9 +1,7 @@
 package main
 
-import (
-	"github.com/kakaba2009/golang/program10"
-)
+import "github.com/kakaba2009/golang/program11"
 
 func main() {
-	program10.Main()
+	program11.Main()
 }
