@@ -193,9 +193,9 @@ func StartWebServer() *echo.Echo {
 	}
 
 	// Login route
-	e.POST("/login", login)
 	e.File("/", "program12/public/login.html")
-	// e.GET("/", RedisHandler)
+	e.POST("/login", login)
+	e.GET("/home", RedisHandler)
 	e.GET("/articles", GetArticles)
 	e.DELETE("/articles/:id", DeleteArticle)
 	e.POST("/articles/:id", UpdateArticle)
@@ -428,10 +428,9 @@ func login(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	fmt.Print("token ", t)
 
-	return c.JSON(http.StatusOK, echo.Map{
-		"token": t,
-	})
+	return c.Redirect(http.StatusMovedPermanently, "/home")
 }
 
 func accessible(c echo.Context) error {
