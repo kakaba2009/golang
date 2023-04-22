@@ -21,7 +21,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kakaba2009/golang/program7"
 	"github.com/kakaba2009/golang/program8"
-	"github.com/kakaba2009/golang/program11/redishandler" 
+	"github.com/kakaba2009/golang/program9/cookiehandler"
 	"github.com/labstack/echo/v4"
 	"github.com/redis/go-redis/v9"
 )
@@ -182,7 +182,7 @@ func StartWebServer() *echo.Echo {
 		templates: template.Must(template.ParseGlob("program11/public/*.html")),
 	}
 
-	e.GET("/", redishandler.RedisHandler)
+	e.GET("/", RedisHandler)
 	e.GET("/articles", GetArticles)
 	e.DELETE("/articles/:id", DeleteArticle)
 	e.POST("/articles/:id", UpdateArticle)
@@ -306,4 +306,50 @@ func UpdateArticle(c echo.Context) error {
 		return c.JSON(http.StatusNotAcceptable, err.Error())
 	}
 	return c.JSON(http.StatusOK, article)
+}
+
+func GetIdsFromRedis(db *sql.DB) []string {
+	var data []string
+
+	// Lookup ids in Redis first
+	val, err := rdb.Get(ctx, "ids").Result()
+
+	if err == redis.Nil {
+		// Does not exist in Redis yet
+		data = program7.GetIdsFromDatabase(db)
+		// Update redis in-memory data
+		json, err := json.Marshal(data)
+		if err != nil {
+			fmt.Println(err)
+		}
+		err = rdb.Set(ctx, "ids", json, 0).Err()
+		if err != nil {
+			fmt.Println(err)
+		}
+		return data
+	}
+
+	json.Unmarshal([]byte(val), &data)
+
+	return data
+}
+
+type ArticleData struct {
+	Title       string
+	ArticleList []string
+}
+
+func RedisHandler(c echo.Context) error {
+	ip := cookiehandler.CheckClientCookie(c)
+	// If client cookie does not have IP, then set cookie
+	if ip == "" {
+		cookiehandler.SetClientCookie(c)
+	}
+	ids := GetIdsFromRedis(db)
+	// Please note the the second parameter "index.html" is the template name and should
+	// be equal to the value stated in the {{ define }} statement in "public/index.html"
+	return c.Render(http.StatusOK, "index.html", ArticleData{
+		Title:       "Article",
+		ArticleList: ids,
+	})
 }
