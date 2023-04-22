@@ -388,8 +388,7 @@ func PeriodicUpdateRedis(db *sql.DB) {
 }
 
 type jwtCustomClaims struct {
-	Name  string `json:"name"`
-	Admin bool   `json:"admin"`
+	Name string `json:"name"`
 	jwt.RegisteredClaims
 }
 
@@ -404,8 +403,7 @@ func LoginHandler(c echo.Context) error {
 
 	// Set custom claims
 	claims := &jwtCustomClaims{
-		"John Snow",
-		true,
+		username,
 		jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24)),
 		},
