@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -26,7 +25,6 @@ import (
 	"github.com/kakaba2009/golang/program9/cookiehandler"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -48,6 +46,7 @@ type TemplateRegistry struct {
 var db *sql.DB
 var ctx = context.Background()
 var rdb *redis.Client
+var tkn string
 
 func init() {
 	rdb = redis.NewClient(&redis.Options{
@@ -353,10 +352,10 @@ type ArticleData struct {
 }
 
 func RedisHandler(c echo.Context) error {
-	ip := cookiehandler.CheckClientCookie(c)
-	// If client cookie does not have IP, then set cookie
-	if ip == "" {
-		cookiehandler.SetClientCookie(c)
+	token := GetTokenCookie(c)
+	// If client token cookie not valid, redirect to login page
+	if token != tkn {
+		return c.Redirect(http.StatusMovedPermanently, "/")
 	}
 	ids := GetIdsFromRedis(db)
 	// Please note the the second parameter "index.html" is the template name and should
@@ -407,7 +406,7 @@ func LoginHandler(c echo.Context) error {
 		"John Snow",
 		true,
 		jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 72)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24)),
 		},
 	}
 
@@ -415,13 +414,29 @@ func LoginHandler(c echo.Context) error {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	// Generate encoded token and send it as response.
-	t, err := token.SignedString([]byte("secret"))
-	if err != nil {
-		return err
-	}
-	fmt.Print("token ", t)
+	tkn, _ = token.SignedString([]byte(password))
+	fmt.Print("token ", tkn)
+
+	// Set JWT token in client cookie
+	SetTokenCookie(c)
 
 	return c.Redirect(http.StatusMovedPermanently, "/home")
+}
+
+func SetTokenCookie(c echo.Context) {
+	cookie := new(http.Cookie)
+	cookie.Name = "token"
+	cookie.Value = tkn
+	cookie.Expires = time.Now().Add(24 * time.Hour)
+	c.SetCookie(cookie)
+}
+
+func GetTokenCookie(c echo.Context) string {
+	cookie, err := c.Cookie("token")
+	if err != nil {
+		return ""
+	}
+	return cookie.Value
 }
 
 func accessible(c echo.Context) error {
@@ -433,38 +448,6 @@ func restricted(c echo.Context) error {
 	claims := user.Claims.(*jwtCustomClaims)
 	name := claims.Name
 	return c.String(http.StatusOK, "Welcome "+name+"!")
-}
-
-func getKey(token *jwt.Token) (interface{}, error) {
-
-	// For a demonstration purpose, Google Sign-in is used.
-	// https://developers.google.com/identity/sign-in/web/backend-auth
-	//
-	// This user-defined KeyFunc verifies tokens issued by Google Sign-In.
-	//
-	// Note: In this example, it downloads the keyset every time the restricted route is accessed.
-	keySet, err := jwk.Fetch(context.Background(), "https://www.googleapis.com/oauth2/v3/certs")
-	if err != nil {
-		return nil, err
-	}
-
-	keyID, ok := token.Header["kid"].(string)
-	if !ok {
-		return nil, errors.New("expecting JWT header to have a key ID in the kid field")
-	}
-
-	key, found := keySet.LookupKeyID(keyID)
-
-	if !found {
-		return nil, fmt.Errorf("unable to find key %q", keyID)
-	}
-
-	var pubkey interface{}
-	if err := key.Raw(&pubkey); err != nil {
-		return nil, fmt.Errorf("Unable to get the public key. Error: %s", err.Error())
-	}
-
-	return pubkey, nil
 }
 
 func RootHandler(c echo.Context) error {
