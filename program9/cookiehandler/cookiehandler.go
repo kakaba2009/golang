@@ -1,4 +1,4 @@
-package handler
+package cookiehandler
 
 import (
 	"database/sql"

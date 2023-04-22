@@ -20,7 +20,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kakaba2009/golang/program7"
 	"github.com/kakaba2009/golang/program8"
-	"github.com/kakaba2009/golang/program9/handler"
+	"github.com/kakaba2009/golang/program9/cookiehandler"
 	"github.com/labstack/echo/v4"
 )
 
@@ -166,7 +166,7 @@ func StartEcho() *echo.Echo {
 		templates: template.Must(template.ParseGlob("program9/public/*.html")),
 	}
 
-	e.GET("/", handler.CookieHandler)
+	e.GET("/", cookiehandler.CookieHandler)
 	e.Static("/public", "program9/public")
 	// Start server
 	go func() {
