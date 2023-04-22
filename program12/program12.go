@@ -197,7 +197,7 @@ func StartWebServer() *echo.Echo {
 	e.GET("/articles", GetArticles)
 	e.DELETE("/articles/:id", DeleteArticle)
 	e.POST("/articles/:id", UpdateArticle)
-	e.Static("/public", "program12/public")
+	e.GET("/public/*", ArticleHandler)
 
 	// Start server
 	go func() {
@@ -462,4 +462,15 @@ func RootHandler(c echo.Context) error {
 		Title:       "Article",
 		ArticleList: nil,
 	})
+}
+
+func ArticleHandler(c echo.Context) error {
+	token := GetTokenCookie(c)
+	// If client token cookie not valid, redirect to login page
+	if token != tkn {
+		return c.Redirect(http.StatusMovedPermanently, "/")
+	}
+	// Please note the the second parameter "index.html" is the template name and should
+	// be equal to the value stated in the {{ define }} statement in "public/index.html"
+	return c.File("program12/" + c.Request().RequestURI)
 }
