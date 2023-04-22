@@ -240,7 +240,7 @@ func GetArticlesFromRedis(db *sql.DB) []Article {
 		return data
 	}
 
-	err = json.Unmarshal([]byte(val), &data)
+	json.Unmarshal([]byte(val), &data)
 
 	return data
 }
