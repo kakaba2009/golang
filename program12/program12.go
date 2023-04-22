@@ -24,7 +24,6 @@ import (
 	"github.com/kakaba2009/golang/program7"
 	"github.com/kakaba2009/golang/program8"
 	"github.com/kakaba2009/golang/program9/cookiehandler"
-	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/lestrrat-go/jwx/jwk"
@@ -193,22 +192,14 @@ func StartWebServer() *echo.Echo {
 	}
 
 	// Login route
-	e.File("/", "program12/public/login.html")
-	e.POST("/login", login)
+	e.GET("/", RootHandler)
+	e.POST("/login", LoginHandler)
 	e.GET("/home", RedisHandler)
 	e.GET("/articles", GetArticles)
 	e.DELETE("/articles/:id", DeleteArticle)
 	e.POST("/articles/:id", UpdateArticle)
 	e.Static("/public", "program12/public")
-	// Restricted group
-	r := e.Group("/restricted")
-	{
-		config := echojwt.Config{
-			KeyFunc: getKey,
-		}
-		r.Use(echojwt.WithConfig(config))
-		r.GET("", restricted)
-	}
+
 	// Start server
 	go func() {
 		if err := e.Start(":8000"); err != nil && err != http.ErrServerClosed {
@@ -336,7 +327,7 @@ func GetIdsFromRedis(db *sql.DB) []string {
 	// Lookup ids in Redis first
 	val, err := rdb.Get(ctx, "ids").Result()
 
-	if err == redis.Nil {
+	if err != nil {
 		// Does not exist in Redis yet
 		data = program7.GetIdsFromDatabase(db)
 		// Update redis in-memory data
@@ -402,7 +393,7 @@ type jwtCustomClaims struct {
 	jwt.RegisteredClaims
 }
 
-func login(c echo.Context) error {
+func LoginHandler(c echo.Context) error {
 	username := c.FormValue("username")
 	password := c.FormValue("password")
 
@@ -474,4 +465,18 @@ func getKey(token *jwt.Token) (interface{}, error) {
 	}
 
 	return pubkey, nil
+}
+
+func RootHandler(c echo.Context) error {
+	ip := cookiehandler.CheckClientCookie(c)
+	// If client cookie does not have IP, then set cookie
+	if ip == "" {
+		cookiehandler.SetClientCookie(c)
+	}
+	// Please note the the second parameter "index.html" is the template name and should
+	// be equal to the value stated in the {{ define }} statement in "public/index.html"
+	return c.Render(http.StatusOK, "login.html", ArticleData{
+		Title:       "Article",
+		ArticleList: nil,
+	})
 }
