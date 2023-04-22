@@ -225,7 +225,8 @@ func GetArticlesFromRedis(db *sql.DB) []Article {
 
 	val, err := rdb.Get(ctx, "articles").Result()
 
-	if err != nil {
+	if err == redis.Nil {
+		// Does not exist in Redis yet
 		data = GetArticlesFromDatabase(db)
 		// Update redis in-memory data
 		json, err := json.Marshal(data)
@@ -265,6 +266,9 @@ func DeleteArticleFromDatabase(db *sql.DB, id string) (string, error) {
 		return row.Title, err2
 	}
 
+	// Delete the data from Redis as well
+	rdb.Del(ctx, "articles/"+id)
+
 	return row.Title, nil
 }
 
@@ -282,6 +286,11 @@ func UpdateArticleFromDatabase(db *sql.DB, id string, a Article) (Article, error
 	res, err := db.Exec(sql)
 	row, _ := res.RowsAffected()
 	fmt.Println("Rows affected " + strconv.FormatInt(row, 10))
+
+	// Update the data from Redis as well
+	json, _ := json.Marshal(a)
+	rdb.Set(ctx, "articles/"+id, json, 0)
+
 	return a, err
 }
 
@@ -297,26 +306,4 @@ func UpdateArticle(c echo.Context) error {
 		return c.JSON(http.StatusNotAcceptable, err.Error())
 	}
 	return c.JSON(http.StatusOK, article)
-}
-
-func RedisClient() {
-	err := rdb.Set(ctx, "key", "value", 0).Err()
-	if err != nil {
-		panic(err)
-	}
-
-	val, err := rdb.Get(ctx, "key").Result()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("key", val)
-
-	val2, err := rdb.Get(ctx, "key2").Result()
-	if err == redis.Nil {
-		fmt.Println("key2 does not exist")
-	} else if err != nil {
-		panic(err)
-	} else {
-		fmt.Println("key2", val2)
-	}
 }
