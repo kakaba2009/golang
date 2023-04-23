@@ -315,7 +315,7 @@ func GetIdsFromRedis(db *sql.DB) []string {
 	// Lookup ids in Redis first
 	val, err := rdb.Get(ctx, "ids").Result()
 
-	if err == redis.Nil {
+	if err != nil {
 		// Does not exist in Redis yet
 		data = program7.GetIdsFromDatabase(db)
 		// Update redis in-memory data
