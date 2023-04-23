@@ -3,32 +3,38 @@ package program1
 import (
 	"encoding/csv"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
-func ParseTokens(resp *http.Response) {
+func ParseTokens(resp *http.Response) error {
 	file, err := os.Create("result.csv")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		return err
 	}
 	defer file.Close()
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
-
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		return err
 	}
 
-	ProcessText([]string{"id", "url", "title"}, writer)
+	err = ProcessText([]string{"id", "url", "title"}, writer)
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	title := doc.Find("title").Text()
-	ProcessText([]string{"title", "", title}, writer)
+	err = ProcessText([]string{"title", "", title}, writer)
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	doc.Find("li").Each(func(i int, s *goquery.Selection) {
 		ids, _ := s.Attr("id")
@@ -36,28 +42,41 @@ func ParseTokens(resp *http.Response) {
 			s.Find("a").Each(func(i int, s *goquery.Selection) {
 				url, _ := s.Attr("href")
 				txt, _ := s.Attr("title")
-				ProcessText([]string{ids, url, txt}, writer)
+				err = ProcessText([]string{ids, url, txt}, writer)
+				if err != nil {
+					fmt.Println(err)
+				}
 			})
 		}
 	})
+
+	return nil
 }
 
-func ProcessText(data []string, writer *csv.Writer) {
+func ProcessText(data []string, writer *csv.Writer) error {
 	if len(data) > 0 {
 		fmt.Println(data)
-		writer.Write(data)
+		return writer.Write(data)
 	}
+	return nil
 }
 
-func ReadPage(link string) {
+func ReadPage(link string) error {
 	res, err := http.Get(link)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		return err
 	}
-	ParseTokens(res)
-	res.Body.Close()
+
+	err = ParseTokens(res)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	return res.Body.Close()
 }
 
-func Main() {
-	ReadPage("https://www.secretchina.com")
+func Main() error {
+	return ReadPage("https://www.secretchina.com")
 }
