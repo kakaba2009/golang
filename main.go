@@ -1,9 +1,16 @@
 package main
 
 import (
-	"github.com/kakaba2009/golang/program12"
+	"fmt"
+
+	"github.com/kakaba2009/golang/program2"
 )
 
 func main() {
-	program12.Main()
+	err := program2.Main()
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 }
