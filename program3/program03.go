@@ -14,7 +14,6 @@ import (
 	"github.com/kakaba2009/golang/program2"
 )
 
-var wg sync.WaitGroup
 var hp string = "https://www.secretchina.com"
 
 func IsDownloaded(dir string, name string) bool {
@@ -50,7 +49,7 @@ func WriteFile(dir string, name string, content string) error {
 	return nil
 }
 
-func ReadSubPage(job chan string, dir string) {
+func ReadSubPage(job chan string, dir string, wg *sync.WaitGroup) {
 	fmt.Println("ReadSubPage ... ")
 	defer wg.Done()
 	for data := range job {
@@ -84,6 +83,8 @@ func ReadSubPage(job chan string, dir string) {
 }
 
 func ReadMainPage(link string, dir string) error {
+	var wg sync.WaitGroup
+
 	fmt.Println("ReadMainPage ... ")
 	job := make(chan string)
 
@@ -94,12 +95,12 @@ func ReadMainPage(link string, dir string) error {
 	}
 
 	wg.Add(1)
-	go program2.FindLinks(res, job)
+	go program2.FindLinks(res, job, &wg)
 
 	threads := 5
 	wg.Add(threads)
 	for i := 1; i <= threads; i++ {
-		go ReadSubPage(job, dir)
+		go ReadSubPage(job, dir, &wg)
 	}
 
 	wg.Wait()
