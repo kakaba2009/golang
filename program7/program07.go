@@ -69,14 +69,14 @@ func FindLinks(resp *http.Response, job chan string, db *sql.DB) {
 
 func WriteToDatabase(db *sql.DB, id string, title string, url string) {
 	// Delete the same id row if exists
-	del := "DELETE FROM article WHERE id = '" + id + "'"
-	_, err1 := db.Exec(del)
+	del := "DELETE FROM article WHERE id = ?"
+	_, err1 := db.Exec(del, id)
 	if err1 != nil {
 		log.Fatal(err1)
 	}
 
-	sql := "INSERT INTO article(id, title, url) VALUES ('" + id + "', '" + title + "', '" + url + "')"
-	_, err2 := db.Exec(sql)
+	sql := "INSERT INTO article(id, title, url) VALUES (?, ?, ?)"
+	_, err2 := db.Exec(sql, id, title, url)
 	if err2 != nil {
 		log.Fatal(err2)
 	}
