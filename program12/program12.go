@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -20,6 +19,8 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/kakaba2009/golang/global"
+	"github.com/kakaba2009/golang/program11"
 	"github.com/kakaba2009/golang/program7"
 	"github.com/kakaba2009/golang/program8"
 	"github.com/kakaba2009/golang/program9/cookiehandler"
@@ -28,15 +29,12 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type ConfigFile struct {
-	Url      string `json:"url"`
-	Threads  int    `json:"threads"`
-	Interval int    `json:"interval"`
-}
+type ConfigFile = global.ConfigFile
+type Article = global.Article
 
-type Article struct {
-	Id    string `json:"id"`
-	Title string `json:"title"`
+type ArticleData struct {
+	Title       string
+	ArticleList []string
 }
 
 type TemplateRegistry struct {
@@ -182,7 +180,7 @@ func PeriodicAction(config ConfigFile, quit chan os.Signal, db *sql.DB, wg *sync
 		case t := <-ticker.C:
 			fmt.Println("Ticking at", t)
 			Download(config, db, wg)
-			PeriodicUpdateRedis(db)
+			program11.PeriodicUpdateRedis(db)
 		case <-quit:
 			fmt.Println("Received CTRL+C, exiting ...")
 			return
@@ -242,78 +240,20 @@ func GetArticlesFromDatabase(db *sql.DB) []Article {
 	return articles
 }
 
-func GetArticlesFromRedis(db *sql.DB) []Article {
-	var data []Article
-
-	val, err := rdb.Get(ctx, "articles").Result()
-
-	if err == redis.Nil {
-		// Does not exist in Redis yet
-		data = GetArticlesFromDatabase(db)
-		// Update redis in-memory data
-		json, err := json.Marshal(data)
-		if err != nil {
-			fmt.Println(err)
-		}
-		err = rdb.Set(ctx, "articles", json, 0).Err()
-		if err != nil {
-			fmt.Println(err)
-		}
-		return data
-	}
-
-	json.Unmarshal([]byte(val), &data)
-
-	return data
-}
-
 // GetArticles responds with the list of all articles as JSON.
 func GetArticles(c echo.Context) error {
-	articles := GetArticlesFromRedis(db)
+	articles := program11.GetArticlesFromRedis(db)
 	c.JSON(http.StatusOK, articles)
 	return nil
 }
 
-func DeleteArticleFromDatabase(db *sql.DB, id string) (string, error) {
-	sql := "SELECT title FROM golang.article WHERE id ='" + id + "'"
-	res := db.QueryRow(sql)
-
-	var row Article
-	res.Scan(&row.Title)
-
-	del := "DELETE FROM golang.article WHERE id = '" + id + "'"
-	_, err2 := db.Exec(del)
-	if err2 != nil {
-		log.Fatal(err2)
-		return row.Title, err2
-	}
-
-	// Delete the data from Redis as well
-	rdb.Del(ctx, "articles/"+id)
-
-	return row.Title, nil
-}
-
 func DeleteArticle(c echo.Context) error {
 	id := c.Param("id")
-	title, err := DeleteArticleFromDatabase(db, id)
+	title, err := program11.DeleteArticleFromDatabase(db, id)
 	if err != nil {
 		return c.JSON(http.StatusNotAcceptable, err.Error())
 	}
 	return c.JSON(http.StatusOK, title)
-}
-
-func UpdateArticleFromDatabase(db *sql.DB, id string, a Article) (Article, error) {
-	sql := "UPDATE golang.article SET title = '" + a.Title + "' WHERE id ='" + id + "'"
-	res, err := db.Exec(sql)
-	row, _ := res.RowsAffected()
-	fmt.Println("Rows affected " + strconv.FormatInt(row, 10))
-
-	// Update the data from Redis as well
-	json, _ := json.Marshal(a)
-	rdb.Set(ctx, "articles/"+id, json, 0)
-
-	return a, err
 }
 
 func UpdateArticle(c echo.Context) error {
@@ -323,42 +263,11 @@ func UpdateArticle(c echo.Context) error {
 		log.Println(err)
 		return c.JSON(http.StatusBadRequest, err.Error())
 	}
-	article, err := UpdateArticleFromDatabase(db, id, objRequest)
+	article, err := program11.UpdateArticleFromDatabase(db, id, objRequest)
 	if err != nil {
 		return c.JSON(http.StatusNotAcceptable, err.Error())
 	}
 	return c.JSON(http.StatusOK, article)
-}
-
-func GetIdsFromRedis(db *sql.DB) []string {
-	var data []string
-
-	// Lookup ids in Redis first
-	val, err := rdb.Get(ctx, "ids").Result()
-
-	if err != nil {
-		// Does not exist in Redis yet
-		data = program7.GetIdsFromDatabase(db)
-		// Update redis in-memory data
-		json, err := json.Marshal(data)
-		if err != nil {
-			fmt.Println(err)
-		}
-		err = rdb.Set(ctx, "ids", json, 0).Err()
-		if err != nil {
-			fmt.Println(err)
-		}
-		return data
-	}
-
-	json.Unmarshal([]byte(val), &data)
-
-	return data
-}
-
-type ArticleData struct {
-	Title       string
-	ArticleList []string
 }
 
 func RedisHandler(c echo.Context) error {
@@ -367,33 +276,13 @@ func RedisHandler(c echo.Context) error {
 	if !IsValidateToken(token) {
 		return c.Redirect(http.StatusMovedPermanently, "/")
 	}
-	ids := GetIdsFromRedis(db)
+	ids := program11.GetIdsFromRedis(db)
 	// Please note the the second parameter "index.html" is the template name and should
 	// be equal to the value stated in the {{ define }} statement in "public/index.html"
 	return c.Render(http.StatusOK, "index.html", ArticleData{
 		Title:       "Article",
 		ArticleList: ids,
 	})
-}
-
-func PeriodicUpdateRedis(db *sql.DB) {
-	var data []Article
-
-	data = GetArticlesFromDatabase(db)
-	// Update redis in-memory data
-	json1, err := json.Marshal(data)
-	if err != nil {
-		fmt.Println(err)
-	}
-	err = rdb.Set(ctx, "articles", json1, 0).Err()
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	ids := program7.GetIdsFromDatabase(db)
-	// Update redis in-memory data
-	json2, _ := json.Marshal(ids)
-	rdb.Set(ctx, "ids", json2, 0)
 }
 
 func LoginHandler(c echo.Context) error {
