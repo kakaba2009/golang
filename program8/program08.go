@@ -56,25 +56,10 @@ func FindLinks(resp *http.Response, job chan string, db *sql.DB, wg *sync.WaitGr
 				url, _ := s.Attr("href")
 				txt, _ := s.Attr("title")
 				ProcessText(job, url, txt, ids)
-				WriteToDatabase(db, ids, txt, url)
+				program7.WriteToDatabase(db, ids, txt, url)
 			})
 		}
 	})
-}
-
-func WriteToDatabase(db *sql.DB, id string, title string, url string) {
-	// Delete the same id row if exists
-	del := "DELETE FROM article WHERE id = '" + id + "'"
-	_, err1 := db.Exec(del)
-	if err1 != nil {
-		log.Fatal(err1)
-	}
-
-	sql := "INSERT INTO article(id, title, url) VALUES ('" + id + "', '" + title + "', '" + url + "')"
-	_, err2 := db.Exec(sql)
-	if err2 != nil {
-		log.Fatal(err2)
-	}
 }
 
 func ProcessText(job chan string, url string, title string, id string) {
