@@ -35,24 +35,24 @@ func ReadSubPage(job chan string, dir string, config ConfigFile, wg *sync.WaitGr
 		}
 		res, err := http.Get(config.Url + url)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			continue
 		}
 		doc, err := goquery.NewDocumentFromReader(res.Body)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			continue
 		}
 		content := doc.Find("p").Text()
-		program3.WriteFile(dir, name, string(content))
-		res.Body.Close()
+		err = program3.WriteFile(dir, name, string(content))
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
+		res.Body.Close()
 	}
 }
 
-func ReadMainPage(link string, dir string, config ConfigFile) {
+func ReadMainPage(link string, dir string, config ConfigFile) error {
 	var wg sync.WaitGroup
 
 	fmt.Println("ReadMainPage ... ")
@@ -60,8 +60,8 @@ func ReadMainPage(link string, dir string, config ConfigFile) {
 
 	res, err := http.Get(link)
 	if err != nil {
-		log.Fatal(err)
-		return
+		log.Println(err)
+		return err
 	}
 
 	wg.Add(1)
@@ -74,19 +74,19 @@ func ReadMainPage(link string, dir string, config ConfigFile) {
 	}
 
 	wg.Wait()
-	res.Body.Close()
+	return res.Body.Close()
 }
 
-func Download(config ConfigFile) {
+func Download(config ConfigFile) error {
 	fmt.Println("Start to download ... ")
 	dir := time.Now().Format("2006-01-02")
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
 	}
-	ReadMainPage(config.Url, dir, config)
+	return ReadMainPage(config.Url, dir, config)
 }
 
-func saveJson() {
+func saveJson() error {
 	message := ConfigFile{
 		Url:      "https://www.secretchina.com",
 		Threads:  5,
@@ -95,11 +95,12 @@ func saveJson() {
 	b, err := json.Marshal(message)
 	if err != nil {
 		fmt.Print(err)
+		return err
 	}
-	os.WriteFile("program4/config.json", b, 0755)
+	return os.WriteFile("program4/config.json", b, 0755)
 }
 
-func Main() {
+func Main() error {
 	pwd, _ := os.Getwd()
 	fmt.Println(pwd)
 
@@ -114,13 +115,17 @@ func Main() {
 	conFile, err := os.ReadFile(file)
 	if err != nil {
 		fmt.Print(err)
-		return
+		return err
 	}
 	var config ConfigFile
 	err = json.Unmarshal(conFile, &config)
 	fmt.Println(config)
 	for {
-		Download(config)
+		err = Download(config)
+		if err != nil {
+			fmt.Print(err)
+			return err
+		}
 		fmt.Println("Sleep " + strconv.Itoa(config.Interval) + " minutes")
 		time.Sleep(time.Minute * time.Duration(config.Interval))
 	}
