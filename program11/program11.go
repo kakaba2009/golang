@@ -29,7 +29,10 @@ import (
 )
 
 type ConfigFile = global.ConfigFile
+
 type Article = global.Article
+
+type ArticleData = global.ArticleData
 
 type TemplateRegistry struct {
 	templates *template.Template
@@ -308,11 +311,6 @@ func GetIdsFromRedis(db *sql.DB) []string {
 	json.Unmarshal([]byte(val), &data)
 
 	return data
-}
-
-type ArticleData struct {
-	Title       string
-	ArticleList []string
 }
 
 func RedisHandler(c echo.Context) error {

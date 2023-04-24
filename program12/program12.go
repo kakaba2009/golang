@@ -30,12 +30,10 @@ import (
 )
 
 type ConfigFile = global.ConfigFile
+
 type Article = global.Article
 
-type ArticleData struct {
-	Title       string
-	ArticleList []string
-}
+type ArticleData = global.ArticleData
 
 type TemplateRegistry struct {
 	templates *template.Template
