@@ -13,10 +13,9 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-var wg sync.WaitGroup
 var hp string = "https://www.secretchina.com"
 
-func FindLinks(resp *http.Response, job chan string) {
+func FindLinks(resp *http.Response, job chan string, wg *sync.WaitGroup) {
 	defer close(job)
 	defer wg.Done()
 
@@ -70,7 +69,7 @@ func WriteFile(dir string, name string, content string) error {
 	return nil
 }
 
-func ReadSubPage(job chan string, dir string) {
+func ReadSubPage(job chan string, dir string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for data := range job {
 		links := strings.Split(data, "|")
@@ -99,6 +98,8 @@ func ReadSubPage(job chan string, dir string) {
 }
 
 func ReadMainPage(link string, job chan string, dir string) error {
+	var wg sync.WaitGroup
+
 	res, err := http.Get(link)
 	if err != nil {
 		fmt.Println(err)
@@ -106,12 +107,12 @@ func ReadMainPage(link string, job chan string, dir string) error {
 	}
 
 	wg.Add(1)
-	go FindLinks(res, job)
+	go FindLinks(res, job, &wg)
 
 	threads := 5
 	wg.Add(threads)
 	for i := 1; i <= threads; i++ {
-		go ReadSubPage(job, dir)
+		go ReadSubPage(job, dir, &wg)
 	}
 
 	wg.Wait()
