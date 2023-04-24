@@ -19,6 +19,8 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/kakaba2009/golang/global"
+	"github.com/kakaba2009/golang/program10"
 	"github.com/kakaba2009/golang/program7"
 	"github.com/kakaba2009/golang/program8"
 	"github.com/kakaba2009/golang/program9/cookiehandler"
@@ -26,16 +28,8 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type ConfigFile struct {
-	Url      string `json:"url"`
-	Threads  int    `json:"threads"`
-	Interval int    `json:"interval"`
-}
-
-type Article struct {
-	Id    string `json:"id"`
-	Title string `json:"title"`
-}
+type ConfigFile = global.ConfigFile
+type Article = global.Article
 
 type TemplateRegistry struct {
 	templates *template.Template
@@ -202,25 +196,6 @@ func (t *TemplateRegistry) Render(w io.Writer, name string, data interface{}, c 
 	return t.templates.ExecuteTemplate(w, name, data)
 }
 
-func GetArticlesFromDatabase(db *sql.DB) []Article {
-	sql := "SELECT id, title FROM article"
-	res, err1 := db.Query(sql)
-	if err1 != nil {
-		log.Fatal(err1)
-	}
-
-	var articles []Article
-	for res.Next() {
-		var row Article
-		err2 := res.Scan(&row.Id, &row.Title)
-		if err2 != nil {
-			log.Fatal(err2)
-		}
-		articles = append(articles, row)
-	}
-	return articles
-}
-
 func GetArticlesFromRedis(db *sql.DB) []Article {
 	var data []Article
 
@@ -228,7 +203,7 @@ func GetArticlesFromRedis(db *sql.DB) []Article {
 
 	if err == redis.Nil {
 		// Does not exist in Redis yet
-		data = GetArticlesFromDatabase(db)
+		data = program10.GetArticlesFromDatabase(db)
 		// Update redis in-memory data
 		json, err := json.Marshal(data)
 		if err != nil {
@@ -254,14 +229,14 @@ func GetArticles(c echo.Context) error {
 }
 
 func DeleteArticleFromDatabase(db *sql.DB, id string) (string, error) {
-	sql := "SELECT title FROM golang.article WHERE id ='" + id + "'"
-	res := db.QueryRow(sql)
+	sql := "SELECT title FROM golang.article WHERE id = ?"
+	res := db.QueryRow(sql, id)
 
 	var row Article
 	res.Scan(&row.Title)
 
-	del := "DELETE FROM golang.article WHERE id = '" + id + "'"
-	_, err2 := db.Exec(del)
+	del := "DELETE FROM golang.article WHERE id = ?"
+	_, err2 := db.Exec(del, id)
 	if err2 != nil {
 		log.Fatal(err2)
 		return row.Title, err2
@@ -283,8 +258,8 @@ func DeleteArticle(c echo.Context) error {
 }
 
 func UpdateArticleFromDatabase(db *sql.DB, id string, a Article) (Article, error) {
-	sql := "UPDATE golang.article SET title = '" + a.Title + "' WHERE id ='" + id + "'"
-	res, err := db.Exec(sql)
+	sql := "UPDATE golang.article SET title = ? WHERE id = ?"
+	res, err := db.Exec(sql, a.Title, id)
 	row, _ := res.RowsAffected()
 	fmt.Println("Rows affected " + strconv.FormatInt(row, 10))
 
@@ -358,7 +333,7 @@ func RedisHandler(c echo.Context) error {
 func PeriodicUpdateRedis(db *sql.DB) {
 	var data []Article
 
-	data = GetArticlesFromDatabase(db)
+	data = program10.GetArticlesFromDatabase(db)
 	// Update redis in-memory data
 	json1, err := json.Marshal(data)
 	if err != nil {
