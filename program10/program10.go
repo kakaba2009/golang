@@ -19,22 +19,15 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/kakaba2009/golang/global"
 	"github.com/kakaba2009/golang/program7"
 	"github.com/kakaba2009/golang/program8"
 	"github.com/kakaba2009/golang/program9/cookiehandler"
 	"github.com/labstack/echo/v4"
 )
 
-type ConfigFile struct {
-	Url      string `json:"url"`
-	Threads  int    `json:"threads"`
-	Interval int    `json:"interval"`
-}
-
-type Article struct {
-	Id    string `json:"id"`
-	Title string `json:"title"`
-}
+type ConfigFile = global.ConfigFile
+type Article = global.Article
 
 type TemplateRegistry struct {
 	templates *template.Template
