@@ -18,11 +18,12 @@ import (
 
 type ConfigFile = global.ConfigFile
 
-func FindLinks(resp *http.Response, job chan string, wg *sync.WaitGroup) {
+func FindLinks(resp *http.Response, job chan string, wg *sync.WaitGroup) error {
 	fmt.Println("Start to find links ... ")
 	file, err := os.Create("public/id_file.csv")
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return err
 	}
 	defer file.Close()
 	writer := csv.NewWriter(file)
@@ -31,9 +32,9 @@ func FindLinks(resp *http.Response, job chan string, wg *sync.WaitGroup) {
 	defer close(job)
 	defer wg.Done()
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
-
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return err
 	}
 
 	doc.Find("li").Each(func(i int, s *goquery.Selection) {
@@ -47,6 +48,8 @@ func FindLinks(resp *http.Response, job chan string, wg *sync.WaitGroup) {
 			})
 		}
 	})
+
+	return nil
 }
 
 func ProcessText(job chan string, url string, title string, id string) {
@@ -74,20 +77,22 @@ func FullName(dir string, name string) string {
 	return dir + "/" + name + ".txt"
 }
 
-func WriteFile(dir string, name string, content string) {
+func WriteFile(dir string, name string, content string) error {
 	full := FullName(dir, name)
 	f, err := os.Create(full)
 	if err != nil {
-		log.Fatal(err)
-		return
+		log.Println(err)
+		return err
 	}
 	defer f.Close()
 
-	_, err2 := f.WriteString(content)
-	if err2 != nil {
-		log.Fatal(err2)
+	_, err = f.WriteString(content)
+	if err != nil {
+		log.Println(err)
+		return err
 	}
 	fmt.Println("WriteFile done")
+	return nil
 }
 
 func ReadSubPage(job chan string, dir string, config ConfigFile, wg *sync.WaitGroup) {
@@ -107,24 +112,24 @@ func ReadSubPage(job chan string, dir string, config ConfigFile, wg *sync.WaitGr
 		}
 		res, err := http.Get(config.Url + url)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			continue
 		}
 		doc, err := goquery.NewDocumentFromReader(res.Body)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			continue
 		}
 		content := doc.Find("p").Text()
-		WriteFile(dir, name, string(content))
-		res.Body.Close()
+		err = WriteFile(dir, name, string(content))
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
+		res.Body.Close()
 	}
 }
 
-func ReadMainPage(link string, dir string, config ConfigFile) {
+func ReadMainPage(link string, dir string, config ConfigFile) error {
 	var wg sync.WaitGroup
 
 	fmt.Println("ReadMainPage ... ")
@@ -132,8 +137,8 @@ func ReadMainPage(link string, dir string, config ConfigFile) {
 
 	res, err := http.Get(link)
 	if err != nil {
-		log.Fatal(err)
-		return
+		log.Println(err)
+		return err
 	}
 
 	wg.Add(1)
@@ -146,10 +151,10 @@ func ReadMainPage(link string, dir string, config ConfigFile) {
 	}
 
 	wg.Wait()
-	res.Body.Close()
+	return res.Body.Close()
 }
 
-func Download(config ConfigFile) {
+func Download(config ConfigFile) error {
 	fmt.Println("Start to download ... ")
 	dir := "public"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
@@ -157,18 +162,22 @@ func Download(config ConfigFile) {
 	}
 	os.Create(dir + "/id_file.csv")
 
-	ReadMainPage(config.Url, dir, config)
+	err := ReadMainPage(config.Url, dir, config)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
 	// Generate html index
-	GenerateHtml()
+	return GenerateHtml()
 }
 
-func StartEcho() {
+func StartEcho() error {
 	e := echo.New()
 	e.Static("/", "public")
-	e.Logger.Fatal(e.Start(":8000"))
+	return e.Start(":8000")
 }
 
-func Main() {
+func Main() error {
 	pwd, _ := os.Getwd()
 	fmt.Println(pwd)
 
@@ -183,7 +192,7 @@ func Main() {
 	conFile, err := os.ReadFile(file)
 	if err != nil {
 		fmt.Print(err)
-		return
+		return err
 	}
 	var config ConfigFile
 	err = json.Unmarshal(conFile, &config)
@@ -191,7 +200,7 @@ func Main() {
 
 	go timerDownload(config)
 	// Start Web Server
-	StartEcho()
+	return StartEcho()
 }
 
 func timerDownload(config ConfigFile) {
@@ -205,11 +214,11 @@ func timerDownload(config ConfigFile) {
 	}
 }
 
-func GenerateHtml() {
+func GenerateHtml() error {
 	csv, err := os.ReadFile("public/id_file.csv")
 	if err != nil {
 		fmt.Print(err)
-		return
+		return err
 	}
 	all_ids := string(csv)
 	ids := strings.Split(all_ids, "\n")
@@ -234,12 +243,13 @@ func GenerateHtml() {
 
 	f, err := os.Create("public/index.html")
 	if err != nil {
-		log.Fatal(err)
-		return
+		log.Println(err)
+		return err
 	}
 	defer f.Close()
-	_, err2 := f.WriteString(html)
-	if err2 != nil {
-		log.Fatal(err2)
+	_, err = f.WriteString(html)
+	if err != nil {
+		log.Println(err)
 	}
+	return err
 }
