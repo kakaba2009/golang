@@ -11,45 +11,11 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/kakaba2009/golang/program2"
 )
 
 var wg sync.WaitGroup
 var hp string = "https://www.secretchina.com"
-
-func FindLinks(resp *http.Response, job chan string) {
-	fmt.Println("Start to find links ... ")
-	defer close(job)
-	defer wg.Done()
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	doc.Find("li").Each(func(i int, s *goquery.Selection) {
-		ids, _ := s.Attr("id")
-		if ids != "" {
-			s.Find("a").Each(func(i int, s *goquery.Selection) {
-				url, _ := s.Attr("href")
-				txt, _ := s.Attr("title")
-				ProcessText(job, url, txt)
-			})
-		}
-	})
-}
-
-func ProcessText(job chan string, url string, title string) {
-	fmt.Println("ProcessText ... ")
-	// Ignore other web page url links
-	if strings.Contains(url, "http:") || strings.Contains(url, "https:") || strings.HasPrefix(url, "#") {
-		return
-	}
-	if strings.TrimSpace(title) != "" && strings.TrimSpace(url) != "" {
-		jobData := url + "|" + title
-		job <- jobData
-		fmt.Println(jobData)
-	}
-}
 
 func IsDownloaded(dir string, name string) bool {
 	full := hashName(name, dir)
@@ -66,20 +32,22 @@ func hashName(name string, dir string) string {
 	return full
 }
 
-func WriteFile(dir string, name string, content string) {
+func WriteFile(dir string, name string, content string) error {
 	full := hashName(name, dir)
 	f, err := os.Create(full)
 	if err != nil {
-		log.Fatal(err)
-		return
+		log.Println(err)
+		return err
 	}
 	defer f.Close()
 
-	_, err2 := f.WriteString(content)
-	if err2 != nil {
-		log.Fatal(err2)
+	_, err = f.WriteString(content)
+	if err != nil {
+		log.Println(err)
+		return err
 	}
 	fmt.Println("WriteFile done")
+	return nil
 }
 
 func ReadSubPage(job chan string, dir string) {
@@ -98,35 +66,35 @@ func ReadSubPage(job chan string, dir string) {
 		}
 		res, err := http.Get(hp + url)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			continue
 		}
 		doc, err := goquery.NewDocumentFromReader(res.Body)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			continue
 		}
 		content := doc.Find("p").Text()
-		WriteFile(dir, name, string(content))
-		res.Body.Close()
+		err = WriteFile(dir, name, string(content))
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
+		res.Body.Close()
 	}
 }
 
-func ReadMainPage(link string, dir string) {
+func ReadMainPage(link string, dir string) error {
 	fmt.Println("ReadMainPage ... ")
 	job := make(chan string)
 
 	res, err := http.Get(link)
 	if err != nil {
-		log.Fatal(err)
-		return
+		log.Println(err)
+		return err
 	}
 
 	wg.Add(1)
-	go FindLinks(res, job)
+	go program2.FindLinks(res, job)
 
 	threads := 5
 	wg.Add(threads)
@@ -135,21 +103,25 @@ func ReadMainPage(link string, dir string) {
 	}
 
 	wg.Wait()
-	res.Body.Close()
+	return res.Body.Close()
 }
 
-func Download() {
+func Download() error {
 	fmt.Println("Start to download ... ")
 	dir := time.Now().Format("2006-01-02")
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
 	}
-	ReadMainPage(hp, dir)
+	return ReadMainPage(hp, dir)
 }
 
-func Main() {
+func Main() error {
 	for {
-		Download()
+		err := Download()
+		if err != nil {
+			log.Println(err)
+			return err
+		}
 		fmt.Println("Sleep ...")
 		time.Sleep(time.Minute)
 	}
