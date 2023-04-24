@@ -217,14 +217,14 @@ func GetArticles(c echo.Context) error {
 }
 
 func DeleteArticleFromDatabase(db *sql.DB, id string) (string, error) {
-	sql := "SELECT title FROM golang.article WHERE id ='" + id + "'"
-	res := db.QueryRow(sql)
+	sql := "SELECT title FROM golang.article WHERE id = ?"
+	res := db.QueryRow(sql, id)
 
 	var row Article
 	res.Scan(&row.Title)
 
-	del := "DELETE FROM golang.article WHERE id = '" + id + "'"
-	_, err2 := db.Exec(del)
+	del := "DELETE FROM golang.article WHERE id = ?"
+	_, err2 := db.Exec(del, id)
 	if err2 != nil {
 		log.Fatal(err2)
 		return row.Title, err2
@@ -243,8 +243,8 @@ func DeleteArticle(c echo.Context) error {
 }
 
 func UpdateArticleFromDatabase(db *sql.DB, id string, a Article) (Article, error) {
-	sql := "UPDATE golang.article SET title = '" + a.Title + "' WHERE id ='" + id + "'"
-	res, err := db.Exec(sql)
+	sql := "UPDATE golang.article SET title = ? WHERE id = ?"
+	res, err := db.Exec(sql, a.Title, id)
 	row, _ := res.RowsAffected()
 	fmt.Println("Rows affected " + strconv.FormatInt(row, 10))
 	return a, err
