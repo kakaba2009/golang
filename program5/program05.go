@@ -1,7 +1,6 @@
 package program5
 
 import (
-	"crypto/md5"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -13,18 +12,13 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/kakaba2009/golang/global"
 	"github.com/labstack/echo/v4"
 )
 
-var wg sync.WaitGroup
+type ConfigFile = global.ConfigFile
 
-type ConfigFile struct {
-	Url      string `json:"url"`
-	Threads  int    `json:"threads"`
-	Interval int    `json:"interval"`
-}
-
-func FindLinks(resp *http.Response, job chan string) {
+func FindLinks(resp *http.Response, job chan string, wg *sync.WaitGroup) {
 	fmt.Println("Start to find links ... ")
 	file, err := os.Create("public/id_file.csv")
 	if err != nil {
@@ -69,26 +63,19 @@ func ProcessText(job chan string, url string, title string, id string) {
 }
 
 func IsDownloaded(dir string, name string) bool {
-	full := fullName(dir, name)
+	full := FullName(dir, name)
 	if _, err := os.Stat(full); os.IsNotExist(err) {
 		return false
 	}
 	return true
 }
 
-func fullName(dir string, name string) string {
+func FullName(dir string, name string) string {
 	return dir + "/" + name + ".txt"
 }
 
-func hashName(name string, dir string) string {
-	md5s := md5.Sum([]byte(name))
-	hash := fmt.Sprintf("%x", md5s)
-	full := dir + "/" + hash + ".txt"
-	return full
-}
-
 func WriteFile(dir string, name string, content string) {
-	full := fullName(dir, name)
+	full := FullName(dir, name)
 	f, err := os.Create(full)
 	if err != nil {
 		log.Fatal(err)
@@ -103,7 +90,7 @@ func WriteFile(dir string, name string, content string) {
 	fmt.Println("WriteFile done")
 }
 
-func ReadSubPage(job chan string, dir string, config ConfigFile) {
+func ReadSubPage(job chan string, dir string, config ConfigFile, wg *sync.WaitGroup) {
 	fmt.Println("ReadSubPage ... ")
 	defer wg.Done()
 	for data := range job {
@@ -138,6 +125,8 @@ func ReadSubPage(job chan string, dir string, config ConfigFile) {
 }
 
 func ReadMainPage(link string, dir string, config ConfigFile) {
+	var wg sync.WaitGroup
+
 	fmt.Println("ReadMainPage ... ")
 	job := make(chan string)
 
@@ -148,12 +137,12 @@ func ReadMainPage(link string, dir string, config ConfigFile) {
 	}
 
 	wg.Add(1)
-	go FindLinks(res, job)
+	go FindLinks(res, job, &wg)
 
 	threads := config.Threads
 	wg.Add(threads)
 	for i := 1; i <= threads; i++ {
-		go ReadSubPage(job, dir, config)
+		go ReadSubPage(job, dir, config, &wg)
 	}
 
 	wg.Wait()
