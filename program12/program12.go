@@ -221,25 +221,6 @@ func (t *TemplateRegistry) Render(w io.Writer, name string, data interface{}, c 
 	return t.templates.ExecuteTemplate(w, name, data)
 }
 
-func GetArticlesFromDatabase(db *sql.DB) []Article {
-	sql := "SELECT id, title FROM article"
-	res, err1 := db.Query(sql)
-	if err1 != nil {
-		log.Fatal(err1)
-	}
-
-	var articles []Article
-	for res.Next() {
-		var row Article
-		err2 := res.Scan(&row.Id, &row.Title)
-		if err2 != nil {
-			log.Fatal(err2)
-		}
-		articles = append(articles, row)
-	}
-	return articles
-}
-
 // GetArticles responds with the list of all articles as JSON.
 func GetArticles(c echo.Context) error {
 	articles := program11.GetArticlesFromRedis(db)
