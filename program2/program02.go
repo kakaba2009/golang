@@ -21,9 +21,9 @@ func FindLinks(resp *http.Response, job chan string) {
 	defer wg.Done()
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
-
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		return
 	}
 
 	doc.Find("li").Each(func(i int, s *goquery.Selection) {
@@ -50,21 +50,24 @@ func ProcessText(job chan string, url string, title string) {
 	}
 }
 
-func WriteFile(dir string, name string, content string) {
+func WriteFile(dir string, name string, content string) error {
 	md5s := md5.Sum([]byte(name))
 	hash := fmt.Sprintf("%x", md5s)
 	f, err := os.Create(dir + "/" + hash + ".txt")
 	if err != nil {
-		log.Fatal(err)
-		return
+		log.Println(err)
+		return err
 	}
 	defer f.Close()
 
-	_, err2 := f.WriteString(content)
-	if err2 != nil {
-		log.Fatal(err2)
+	_, err = f.WriteString(content)
+	if err != nil {
+		log.Println(err)
+		return err
 	}
+
 	fmt.Println("done")
+	return nil
 }
 
 func ReadSubPage(job chan string, dir string) {
@@ -78,28 +81,28 @@ func ReadSubPage(job chan string, dir string) {
 		name := links[1]
 		res, err := http.Get(hp + url)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			continue
 		}
 		doc, err := goquery.NewDocumentFromReader(res.Body)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			continue
 		}
 		content := doc.Find("p").Text()
 		WriteFile(dir, name, string(content))
-		res.Body.Close()
+		err = res.Body.Close()
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
 	}
 }
 
-func ReadMainPage(link string, job chan string, dir string) {
+func ReadMainPage(link string, job chan string, dir string) error {
 	res, err := http.Get(link)
 	if err != nil {
-		log.Fatal(err)
-		return
+		fmt.Println(err)
+		return err
 	}
 
 	wg.Add(1)
@@ -112,14 +115,18 @@ func ReadMainPage(link string, job chan string, dir string) {
 	}
 
 	wg.Wait()
-	res.Body.Close()
+	return res.Body.Close()
 }
 
-func Main() {
+func Main() error {
 	job := make(chan string)
 	dir := time.Now().Format("2006-01-02")
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
 	}
-	ReadMainPage(hp, job, dir)
+	return ReadMainPage(hp, job, dir)
 }
