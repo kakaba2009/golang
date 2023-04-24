@@ -17,14 +17,14 @@ import (
 var hp string = "https://www.secretchina.com"
 
 func IsDownloaded(dir string, name string) bool {
-	full := hashName(name, dir)
+	full := HashName(name, dir)
 	if _, err := os.Stat(full); os.IsNotExist(err) {
 		return false
 	}
 	return true
 }
 
-func hashName(name string, dir string) string {
+func HashName(name string, dir string) string {
 	md5s := md5.Sum([]byte(name))
 	hash := fmt.Sprintf("%x", md5s)
 	full := dir + "/" + hash + ".txt"
@@ -32,7 +32,7 @@ func hashName(name string, dir string) string {
 }
 
 func WriteFile(dir string, name string, content string) error {
-	full := hashName(name, dir)
+	full := HashName(name, dir)
 	f, err := os.Create(full)
 	if err != nil {
 		log.Println(err)
