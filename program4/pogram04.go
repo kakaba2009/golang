@@ -1,7 +1,6 @@
 package program4
 
 import (
-	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -13,83 +12,14 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/kakaba2009/golang/global"
+	"github.com/kakaba2009/golang/program2"
+	"github.com/kakaba2009/golang/program3"
 )
 
-var wg sync.WaitGroup
+type ConfigFile = global.ConfigFile
 
-type ConfigFile struct {
-	Url      string `json:"url"`
-	Threads  int    `json:"threads"`
-	Interval int    `json:"interval"`
-}
-
-func FindLinks(resp *http.Response, job chan string) {
-	fmt.Println("Start to find links ... ")
-	defer close(job)
-	defer wg.Done()
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	doc.Find("li").Each(func(i int, s *goquery.Selection) {
-		ids, _ := s.Attr("id")
-		if ids != "" {
-			s.Find("a").Each(func(i int, s *goquery.Selection) {
-				url, _ := s.Attr("href")
-				txt, _ := s.Attr("title")
-				ProcessText(job, url, txt)
-			})
-		}
-	})
-}
-
-func ProcessText(job chan string, url string, title string) {
-	fmt.Println("ProcessText ... ")
-	// Ignore other web page url links
-	if strings.Contains(url, "http:") || strings.Contains(url, "https:") || strings.HasPrefix(url, "#") {
-		return
-	}
-	if strings.TrimSpace(title) != "" && strings.TrimSpace(url) != "" {
-		jobData := url + "|" + title
-		job <- jobData
-		fmt.Println(jobData)
-	}
-}
-
-func IsDownloaded(dir string, name string) bool {
-	full := hashName(name, dir)
-	if _, err := os.Stat(full); os.IsNotExist(err) {
-		return false
-	}
-	return true
-}
-
-func hashName(name string, dir string) string {
-	md5s := md5.Sum([]byte(name))
-	hash := fmt.Sprintf("%x", md5s)
-	full := dir + "/" + hash + ".txt"
-	return full
-}
-
-func WriteFile(dir string, name string, content string) {
-	full := hashName(name, dir)
-	f, err := os.Create(full)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	defer f.Close()
-
-	_, err2 := f.WriteString(content)
-	if err2 != nil {
-		log.Fatal(err2)
-	}
-	fmt.Println("WriteFile done")
-}
-
-func ReadSubPage(job chan string, dir string, config ConfigFile) {
+func ReadSubPage(job chan string, dir string, config ConfigFile, wg *sync.WaitGroup) {
 	fmt.Println("ReadSubPage ... ")
 	defer wg.Done()
 	for data := range job {
@@ -99,7 +29,7 @@ func ReadSubPage(job chan string, dir string, config ConfigFile) {
 			continue
 		}
 		name := links[1]
-		if IsDownloaded(dir, name) {
+		if program3.IsDownloaded(dir, name) {
 			fmt.Println(url + " already downloaded, skip ...")
 			continue
 		}
@@ -114,7 +44,7 @@ func ReadSubPage(job chan string, dir string, config ConfigFile) {
 			continue
 		}
 		content := doc.Find("p").Text()
-		WriteFile(dir, name, string(content))
+		program3.WriteFile(dir, name, string(content))
 		res.Body.Close()
 		if err != nil {
 			log.Fatal(err)
@@ -123,6 +53,8 @@ func ReadSubPage(job chan string, dir string, config ConfigFile) {
 }
 
 func ReadMainPage(link string, dir string, config ConfigFile) {
+	var wg sync.WaitGroup
+
 	fmt.Println("ReadMainPage ... ")
 	job := make(chan string)
 
@@ -133,12 +65,12 @@ func ReadMainPage(link string, dir string, config ConfigFile) {
 	}
 
 	wg.Add(1)
-	go FindLinks(res, job)
+	go program2.FindLinks(res, job, &wg)
 
 	threads := config.Threads
 	wg.Add(threads)
 	for i := 1; i <= threads; i++ {
-		go ReadSubPage(job, dir, config)
+		go ReadSubPage(job, dir, config, &wg)
 	}
 
 	wg.Wait()
