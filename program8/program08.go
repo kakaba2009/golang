@@ -18,6 +18,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/kakaba2009/golang/program5"
 	"github.com/kakaba2009/golang/program7"
 	"github.com/kakaba2009/golang/program8/handler"
 	"github.com/labstack/echo/v4"
@@ -76,7 +77,7 @@ func ProcessText(job chan string, url string, title string, id string) {
 }
 
 func WriteFile(dir string, name string, content string) {
-	full := program7.FullName(dir, name)
+	full := program5.FullName(dir, name)
 	f, err := os.Create(full)
 	if err != nil {
 		log.Fatal(err)
@@ -102,7 +103,7 @@ func ReadSubPage(job chan string, dir string, config ConfigFile, wg *sync.WaitGr
 		}
 		// Use ID as name for file save
 		name := links[2]
-		if program7.IsDownloaded(dir, name) {
+		if program5.IsDownloaded(dir, name) {
 			fmt.Println(url + " already downloaded, skip ...")
 			continue
 		}

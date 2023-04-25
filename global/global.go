@@ -15,3 +15,9 @@ type ArticleData struct {
 	Title       string
 	ArticleList []string
 }
+
+type Record struct {
+	Id    string
+	Title string
+	Url   string
+}

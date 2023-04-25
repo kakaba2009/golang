@@ -10,31 +10,22 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/kakaba2009/golang/global"
+	"github.com/kakaba2009/golang/program5"
 	"github.com/labstack/echo/v4"
 )
 
-var wg sync.WaitGroup
+type ConfigFile = global.ConfigFile
 
-type ConfigFile struct {
-	Url      string `json:"url"`
-	Threads  int    `json:"threads"`
-	Interval int    `json:"interval"`
-}
+type Record = global.Record
 
-type Record struct {
-	Id    string
-	Title string
-	Url   string
-}
-
-func FindLinks(resp *http.Response, job chan string, db *sql.DB) {
+func FindLinks(resp *http.Response, job chan string, db *sql.DB, wg *sync.WaitGroup) {
 	fmt.Println("Start to find links ... ")
 
 	file, err := os.Create("public/id_file.csv")
@@ -59,7 +50,7 @@ func FindLinks(resp *http.Response, job chan string, db *sql.DB) {
 			s.Find("a").Each(func(i int, s *goquery.Selection) {
 				url, _ := s.Attr("href")
 				txt, _ := s.Attr("title")
-				ProcessText(job, url, txt, ids)
+				program5.ProcessText(job, url, txt, ids)
 				writer.Write([]string{ids})
 				WriteToDatabase(db, ids, txt, url)
 			})
@@ -82,82 +73,9 @@ func WriteToDatabase(db *sql.DB, id string, title string, url string) {
 	}
 }
 
-func ProcessText(job chan string, url string, title string, id string) {
-	fmt.Println("ProcessText ... ")
-	// Ignore other web page url links
-	if strings.Contains(url, "http:") || strings.Contains(url, "https:") || strings.HasPrefix(url, "#") {
-		return
-	}
-	if strings.TrimSpace(title) != "" && strings.TrimSpace(url) != "" {
-		jobData := url + "|" + title + "|" + id
-		job <- jobData
-		fmt.Println(jobData)
-	}
-}
-
-func IsDownloaded(dir string, name string) bool {
-	full := FullName(dir, name)
-	if _, err := os.Stat(full); os.IsNotExist(err) {
-		return false
-	}
-	return true
-}
-
-func FullName(dir string, name string) string {
-	return dir + "/" + name + ".txt"
-}
-
-func WriteFile(dir string, name string, content string) {
-	full := FullName(dir, name)
-	f, err := os.Create(full)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	defer f.Close()
-
-	_, err2 := f.WriteString(content)
-	if err2 != nil {
-		log.Fatal(err2)
-	}
-	fmt.Println("WriteFile done")
-}
-
-func ReadSubPage(job chan string, dir string, config ConfigFile) {
-	fmt.Println("ReadSubPage ... ")
-	defer wg.Done()
-	for data := range job {
-		links := strings.Split(data, "|")
-		url := links[0]
-		if strings.Contains(url, "http:") || strings.Contains(url, "https:") {
-			continue
-		}
-		// Use ID as name for file save
-		name := links[2]
-		if IsDownloaded(dir, name) {
-			fmt.Println(url + " already downloaded, skip ...")
-			continue
-		}
-		res, err := http.Get(config.Url + url)
-		if err != nil {
-			log.Fatal(err)
-			continue
-		}
-		doc, err := goquery.NewDocumentFromReader(res.Body)
-		if err != nil {
-			log.Fatal(err)
-			continue
-		}
-		content := doc.Find("p").Text()
-		WriteFile(dir, name, string(content))
-		res.Body.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-}
-
 func ReadMainPage(link string, dir string, config ConfigFile, db *sql.DB) {
+	var wg sync.WaitGroup
+
 	fmt.Println("ReadMainPage ... ")
 	job := make(chan string)
 
@@ -168,12 +86,12 @@ func ReadMainPage(link string, dir string, config ConfigFile, db *sql.DB) {
 	}
 
 	wg.Add(1)
-	go FindLinks(res, job, db)
+	go FindLinks(res, job, db, &wg)
 
 	threads := config.Threads
 	wg.Add(threads)
 	for i := 1; i <= threads; i++ {
-		go ReadSubPage(job, dir, config)
+		go program5.ReadSubPage(job, dir, config, &wg)
 	}
 
 	wg.Wait()

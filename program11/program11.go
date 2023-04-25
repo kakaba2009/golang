@@ -21,6 +21,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kakaba2009/golang/global"
 	"github.com/kakaba2009/golang/program10"
+	"github.com/kakaba2009/golang/program5"
 	"github.com/kakaba2009/golang/program7"
 	"github.com/kakaba2009/golang/program8"
 	"github.com/kakaba2009/golang/program9/cookiehandler"
@@ -61,7 +62,7 @@ func ReadSubPage(job chan string, dir string, config ConfigFile, wg *sync.WaitGr
 		}
 		// Use ID as name for file save
 		name := links[2]
-		if program7.IsDownloaded(dir, name) {
+		if program5.IsDownloaded(dir, name) {
 			fmt.Println(url + " already downloaded, skip ...")
 			continue
 		}
