@@ -296,7 +296,7 @@ func GetIdsFromRedis(db *sql.DB) []string {
 
 	if err != nil {
 		// Does not exist in Redis yet
-		data = program7.GetIdsFromDatabase(db)
+		data, _ = program7.GetIdsFromDatabase(db)
 		// Update redis in-memory data
 		json, err := json.Marshal(data)
 		if err != nil {
@@ -343,7 +343,7 @@ func PeriodicUpdateRedis(db *sql.DB) {
 		fmt.Println(err)
 	}
 
-	ids := program7.GetIdsFromDatabase(db)
+	ids, _ := program7.GetIdsFromDatabase(db)
 	// Update redis in-memory data
 	json2, _ := json.Marshal(ids)
 	rdb.Set(ctx, "ids", json2, 0)
