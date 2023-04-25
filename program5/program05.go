@@ -3,7 +3,6 @@ package program5
 import (
 	"encoding/csv"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -19,7 +18,7 @@ import (
 type ConfigFile = global.ConfigFile
 
 func FindLinks(resp *http.Response, job chan string, wg *sync.WaitGroup) error {
-	fmt.Println("Start to find links ... ")
+	log.Println("Start to find links ... ")
 	file, err := os.Create("public/id_file.csv")
 	if err != nil {
 		log.Println(err)
@@ -53,7 +52,7 @@ func FindLinks(resp *http.Response, job chan string, wg *sync.WaitGroup) error {
 }
 
 func ProcessText(job chan string, url string, title string, id string) {
-	fmt.Println("ProcessText ... ")
+	log.Println("ProcessText ... ")
 	// Ignore other web page url links
 	if strings.Contains(url, "http:") || strings.Contains(url, "https:") || strings.HasPrefix(url, "#") {
 		return
@@ -61,7 +60,7 @@ func ProcessText(job chan string, url string, title string, id string) {
 	if strings.TrimSpace(title) != "" && strings.TrimSpace(url) != "" {
 		jobData := url + "|" + title + "|" + id
 		job <- jobData
-		fmt.Println(jobData)
+		log.Println(jobData)
 	}
 }
 
@@ -91,12 +90,12 @@ func WriteFile(dir string, name string, content string) error {
 		log.Println(err)
 		return err
 	}
-	fmt.Println("WriteFile done")
+	log.Println("WriteFile done")
 	return nil
 }
 
 func ReadSubPage(job chan string, dir string, config ConfigFile, wg *sync.WaitGroup) {
-	fmt.Println("ReadSubPage ... ")
+	log.Println("ReadSubPage ... ")
 	defer wg.Done()
 	for data := range job {
 		links := strings.Split(data, "|")
@@ -107,7 +106,7 @@ func ReadSubPage(job chan string, dir string, config ConfigFile, wg *sync.WaitGr
 		// Use ID as name for file save
 		name := links[2]
 		if IsDownloaded(dir, name) {
-			fmt.Println(url + " already downloaded, skip ...")
+			log.Println(url + " already downloaded, skip ...")
 			continue
 		}
 		res, err := http.Get(config.Url + url)
@@ -132,7 +131,7 @@ func ReadSubPage(job chan string, dir string, config ConfigFile, wg *sync.WaitGr
 func ReadMainPage(link string, dir string, config ConfigFile) error {
 	var wg sync.WaitGroup
 
-	fmt.Println("ReadMainPage ... ")
+	log.Println("ReadMainPage ... ")
 	job := make(chan string)
 
 	res, err := http.Get(link)
@@ -155,7 +154,7 @@ func ReadMainPage(link string, dir string, config ConfigFile) error {
 }
 
 func Download(config ConfigFile) error {
-	fmt.Println("Start to download ... ")
+	log.Println("Start to download ... ")
 	dir := "public"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
@@ -179,36 +178,36 @@ func StartEcho() error {
 
 func Main() error {
 	pwd, _ := os.Getwd()
-	fmt.Println(pwd)
+	log.Println(pwd)
 
 	file := "program5/config.json"
 
 	if len(os.Args) >= 2 {
 		// Use config file from command line
 		file = os.Args[1]
-		fmt.Println("Use config file " + file)
+		log.Println("Use config file " + file)
 	}
 
 	conFile, err := os.ReadFile(file)
 	if err != nil {
-		fmt.Print(err)
+		log.Print(err)
 		return err
 	}
 	var config ConfigFile
 	err = json.Unmarshal(conFile, &config)
-	fmt.Println(config)
+	log.Println(config)
 
-	go timerDownload(config)
+	go PeriodicDownload(config)
 	// Start Web Server
 	return StartEcho()
 }
 
-func timerDownload(config ConfigFile) {
+func PeriodicDownload(config ConfigFile) {
 	ticker := time.NewTicker(time.Minute * time.Duration(config.Interval))
 	for {
 		select {
 		case t := <-ticker.C:
-			fmt.Println("Ticking at", t)
+			log.Println("Ticking at", t)
 			Download(config)
 		}
 	}
@@ -217,7 +216,7 @@ func timerDownload(config ConfigFile) {
 func GenerateHtml() error {
 	csv, err := os.ReadFile("public/id_file.csv")
 	if err != nil {
-		fmt.Print(err)
+		log.Println(err)
 		return err
 	}
 	all_ids := string(csv)
