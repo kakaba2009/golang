@@ -29,6 +29,8 @@ type TemplateRegistry struct {
 	templates *template.Template
 }
 
+var db *sql.DB
+
 func Download(config ConfigFile, db *sql.DB) error {
 	fmt.Println("Start to download ... ")
 	dir := "program10/public"
@@ -40,8 +42,6 @@ func Download(config ConfigFile, db *sql.DB) error {
 }
 
 func Main() error {
-	var db *sql.DB
-
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
