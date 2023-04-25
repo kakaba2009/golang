@@ -7,14 +7,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/kakaba2009/golang/global"
 	"github.com/kakaba2009/golang/program7"
 	"github.com/labstack/echo/v4"
 )
 
-type ArticleData struct {
-	Title       string
-	ArticleList []string
-}
+type ArticleData = global.ArticleData
 
 var db *sql.DB
 var err error
@@ -32,7 +30,7 @@ func SetClientCookie(c echo.Context) {
 	cookie.Value = c.RealIP()
 	cookie.Expires = time.Now().Add(24 * time.Hour)
 	c.SetCookie(cookie)
-	fmt.Println("Set Client Cookie: ", cookie)
+	log.Println("Set Client Cookie: ", cookie)
 }
 
 func CheckClientCookie(c echo.Context) string {
