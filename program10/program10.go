@@ -29,19 +29,19 @@ type TemplateRegistry struct {
 	templates *template.Template
 }
 
-var db *sql.DB
-
-func Download(config ConfigFile, db *sql.DB) {
+func Download(config ConfigFile, db *sql.DB) error {
 	fmt.Println("Start to download ... ")
 	dir := "program10/public"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
 	}
 
-	program8.ReadMainPage(config.Url, dir, config, db)
+	return program8.ReadMainPage(config.Url, dir, config, db)
 }
 
-func Main() {
+func Main() error {
+	var db *sql.DB
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
@@ -50,17 +50,17 @@ func Main() {
 	if len(os.Args) >= 2 {
 		// Use config file from command line
 		file = os.Args[1]
-		fmt.Println("Use config file " + file)
+		log.Println("Use config file " + file)
 	}
 
 	conFile, err := os.ReadFile(file)
 	if err != nil {
-		fmt.Print(err)
-		return
+		log.Println(err)
+		return err
 	}
 	var config ConfigFile
 	err = json.Unmarshal(conFile, &config)
-	fmt.Println(config)
+	log.Println(config)
 
 	db, _ = sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
 	defer db.Close()
@@ -75,9 +75,12 @@ func Main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := e.Shutdown(ctx); err != nil {
-		e.Logger.Fatal(err)
+		log.Println(err)
+		return err
 	}
-	fmt.Println("Exiting ECHO Server ...")
+
+	log.Println("Exiting ECHO Server ...")
+	return nil
 }
 
 func PeriodicDownload(config ConfigFile, quit chan os.Signal, db *sql.DB) {
