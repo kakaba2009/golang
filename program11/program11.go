@@ -11,17 +11,13 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"strings"
-	"sync"
 	"syscall"
 	"text/template"
 	"time"
 
-	"github.com/PuerkitoBio/goquery"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kakaba2009/golang/global"
 	"github.com/kakaba2009/golang/program10"
-	"github.com/kakaba2009/golang/program5"
 	"github.com/kakaba2009/golang/program7"
 	"github.com/kakaba2009/golang/program8"
 	"github.com/kakaba2009/golang/program9/cookiehandler"
@@ -51,76 +47,17 @@ func init() {
 	})
 }
 
-func ReadSubPage(job chan string, dir string, config ConfigFile, wg *sync.WaitGroup) {
-	fmt.Println("ReadSubPage ... ")
-	defer wg.Done()
-	for data := range job {
-		links := strings.Split(data, "|")
-		url := links[0]
-		if strings.Contains(url, "http:") || strings.Contains(url, "https:") {
-			continue
-		}
-		// Use ID as name for file save
-		name := links[2]
-		if program5.IsDownloaded(dir, name) {
-			fmt.Println(url + " already downloaded, skip ...")
-			continue
-		}
-		res, err := http.Get(config.Url + url)
-		if err != nil {
-			log.Fatal(err)
-			continue
-		}
-		doc, err := goquery.NewDocumentFromReader(res.Body)
-		if err != nil {
-			log.Fatal(err)
-			continue
-		}
-		content := doc.Find("p").Text()
-		program5.WriteFile(dir, name, string(content))
-		res.Body.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-}
-
-func ReadMainPage(link string, dir string, config ConfigFile, db *sql.DB, wg *sync.WaitGroup) {
-	fmt.Println("ReadMainPage ... ")
-	job := make(chan string)
-
-	res, err := http.Get(link)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	wg.Add(1)
-	go program8.FindLinks(res, job, db, wg)
-
-	threads := config.Threads
-	wg.Add(threads)
-	for i := 1; i <= threads; i++ {
-		go ReadSubPage(job, dir, config, wg)
-	}
-
-	wg.Wait()
-	res.Body.Close()
-}
-
-func Download(config ConfigFile, db *sql.DB, wg *sync.WaitGroup) {
+func Download(config ConfigFile, db *sql.DB) {
 	fmt.Println("Start to download ... ")
 	dir := "program11/public"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
 	}
 
-	ReadMainPage(config.Url, dir, config, db, wg)
+	program8.ReadMainPage(config.Url, dir, config, db)
 }
 
 func Main() {
-	var wg sync.WaitGroup
-
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
@@ -148,7 +85,7 @@ func Main() {
 	e := StartWebServer()
 
 	// Below function blocks
-	PeriodicAction(config, quit, db, &wg)
+	PeriodicAction(config, quit, db)
 
 	//graceful shutdown ECHO
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -159,14 +96,14 @@ func Main() {
 	fmt.Println("Exiting ECHO ...")
 }
 
-func PeriodicAction(config ConfigFile, quit chan os.Signal, db *sql.DB, wg *sync.WaitGroup) {
+func PeriodicAction(config ConfigFile, quit chan os.Signal, db *sql.DB) {
 	defer fmt.Println("Exiting timer download")
 	ticker := time.NewTicker(time.Minute * time.Duration(config.Interval))
 	for {
 		select {
 		case t := <-ticker.C:
 			fmt.Println("Ticking at", t)
-			Download(config, db, wg)
+			Download(config, db)
 			PeriodicUpdateRedis(db)
 		case <-quit:
 			fmt.Println("Received CTRL+C, exiting ...")
