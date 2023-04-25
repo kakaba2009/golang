@@ -25,12 +25,13 @@ type ConfigFile = global.ConfigFile
 
 type Record = global.Record
 
-func FindLinks(resp *http.Response, job chan string, db *sql.DB, wg *sync.WaitGroup) {
-	fmt.Println("Start to find links ... ")
+func FindLinks(resp *http.Response, job chan string, db *sql.DB, wg *sync.WaitGroup) error {
+	log.Println("Start to find links ... ")
 
 	file, err := os.Create("public/id_file.csv")
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return err
 	}
 	defer file.Close()
 	writer := csv.NewWriter(file)
@@ -39,9 +40,9 @@ func FindLinks(resp *http.Response, job chan string, db *sql.DB, wg *sync.WaitGr
 	defer close(job)
 	defer wg.Done()
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
-
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return err
 	}
 
 	doc.Find("li").Each(func(i int, s *goquery.Selection) {
@@ -52,28 +53,35 @@ func FindLinks(resp *http.Response, job chan string, db *sql.DB, wg *sync.WaitGr
 				txt, _ := s.Attr("title")
 				program5.ProcessText(job, url, txt, ids)
 				writer.Write([]string{ids})
-				WriteToDatabase(db, ids, txt, url)
+				err := WriteToDatabase(db, ids, txt, url)
+				if err != nil {
+					log.Println(err)
+				}
 			})
 		}
 	})
+
+	return nil
 }
 
-func WriteToDatabase(db *sql.DB, id string, title string, url string) {
+func WriteToDatabase(db *sql.DB, id string, title string, url string) error {
 	// Delete the same id row if exists
 	del := "DELETE FROM article WHERE id = ?"
 	_, err1 := db.Exec(del, id)
 	if err1 != nil {
-		log.Fatal(err1)
+		return err1
 	}
 
 	sql := "INSERT INTO article(id, title, url) VALUES (?, ?, ?)"
 	_, err2 := db.Exec(sql, id, title, url)
 	if err2 != nil {
-		log.Fatal(err2)
+		return err2
 	}
+
+	return nil
 }
 
-func ReadMainPage(link string, dir string, config ConfigFile, db *sql.DB) {
+func ReadMainPage(link string, dir string, config ConfigFile, db *sql.DB) error {
 	var wg sync.WaitGroup
 
 	fmt.Println("ReadMainPage ... ")
@@ -81,8 +89,8 @@ func ReadMainPage(link string, dir string, config ConfigFile, db *sql.DB) {
 
 	res, err := http.Get(link)
 	if err != nil {
-		log.Fatal(err)
-		return
+		log.Println(err)
+		return err
 	}
 
 	wg.Add(1)
@@ -95,20 +103,23 @@ func ReadMainPage(link string, dir string, config ConfigFile, db *sql.DB) {
 	}
 
 	wg.Wait()
-	res.Body.Close()
+	return res.Body.Close()
 }
 
-func Download(config ConfigFile, db *sql.DB) {
-	fmt.Println("Start to download ... ")
+func Download(config ConfigFile, db *sql.DB) error {
+	log.Println("Start to download ... ")
 	dir := "public"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
 	}
 	os.Create(dir + "/id_file.csv")
 
-	ReadMainPage(config.Url, dir, config, db)
+	err := ReadMainPage(config.Url, dir, config, db)
+	if err != nil {
+		return err
+	}
 	// Generate html index
-	GenerateHtml(db)
+	return GenerateHtml(db)
 }
 
 func StartEcho() *echo.Echo {
@@ -123,7 +134,7 @@ func StartEcho() *echo.Echo {
 	return e
 }
 
-func Main() {
+func Main() error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
@@ -132,59 +143,65 @@ func Main() {
 	if len(os.Args) >= 2 {
 		// Use config file from command line
 		file = os.Args[1]
-		fmt.Println("Use config file " + file)
+		log.Println("Use config file " + file)
 	}
 
 	conFile, err := os.ReadFile(file)
 	if err != nil {
-		fmt.Print(err)
-		return
+		log.Println(err)
+		return err
 	}
 	var config ConfigFile
 	err = json.Unmarshal(conFile, &config)
-	fmt.Println(config)
+	log.Println(config)
 
 	db, err0 := sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
 	defer db.Close()
 	if err0 != nil {
-		log.Fatal(err0)
+		log.Println(err0)
+		return err0
 	}
 
 	// Start Web Server
 	e := StartEcho()
 
 	// Below function blocks
-	timerDownload(config, quit, db)
+	PeriodicDownload(config, quit, db)
 
 	//graceful shutdown ECHO
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := e.Shutdown(ctx); err != nil {
-		e.Logger.Fatal(err)
+		e.Logger.Print(err)
+		return err
 	}
-	fmt.Println("Exiting ECHO ...")
+
+	log.Println("Exiting ECHO Server ...")
+
+	return nil
 }
 
-func timerDownload(config ConfigFile, quit chan os.Signal, db *sql.DB) {
-	defer fmt.Println("Exiting timer download")
+func PeriodicDownload(config ConfigFile, quit chan os.Signal, db *sql.DB) {
+	defer fmt.Println("Exiting periodic download")
 	ticker := time.NewTicker(time.Minute * time.Duration(config.Interval))
 	for {
 		select {
 		case t := <-ticker.C:
-			fmt.Println("Ticking at", t)
+			log.Println("Ticking at", t)
 			Download(config, db)
 		case <-quit:
-			fmt.Println("Received CTRL+C, exiting ...")
+			log.Println("Received CTRL+C, exiting ...")
 			return
 		}
 	}
 }
 
-func GetIdsFromDatabase(db *sql.DB) []string {
+func GetIdsFromDatabase(db *sql.DB) ([]string, error) {
 	sql := "SELECT id FROM article"
 	res, err1 := db.Query(sql)
 	if err1 != nil {
-		log.Fatal(err1)
+		log.Println(err1)
+		return nil, err1
 	}
 
 	var ids []string
@@ -196,11 +213,14 @@ func GetIdsFromDatabase(db *sql.DB) []string {
 		}
 		ids = append(ids, row.Id)
 	}
-	return ids
+	return ids, nil
 }
 
-func GenerateHtml(db *sql.DB) {
-	ids := GetIdsFromDatabase(db)
+func GenerateHtml(db *sql.DB) error {
+	ids, ok := GetIdsFromDatabase(db)
+	if ok != nil {
+		return ok
+	}
 
 	html := `
 	<!DOCTYPE html>
@@ -222,12 +242,15 @@ func GenerateHtml(db *sql.DB) {
 
 	f, err := os.Create("public/index.html")
 	if err != nil {
-		log.Fatal(err)
-		return
+		log.Println(err)
+		return err
 	}
 	defer f.Close()
-	_, err2 := f.WriteString(html)
-	if err2 != nil {
-		log.Fatal(err2)
+	_, err = f.WriteString(html)
+	if err != nil {
+		log.Println(err)
+		return err
 	}
+
+	return nil
 }
