@@ -207,7 +207,7 @@ func GetArticlesFromRedis(db *sql.DB) []Article {
 
 	if err == redis.Nil {
 		// Does not exist in Redis yet
-		data = program10.GetArticlesFromDatabase(db)
+		data, _ = program10.GetArticlesFromDatabase(db)
 		// Update redis in-memory data
 		json, err := json.Marshal(data)
 		if err != nil {
@@ -332,7 +332,7 @@ func RedisHandler(c echo.Context) error {
 func PeriodicUpdateRedis(db *sql.DB) {
 	var data []Article
 
-	data = program10.GetArticlesFromDatabase(db)
+	data, _ = program10.GetArticlesFromDatabase(db)
 	// Update redis in-memory data
 	json1, err := json.Marshal(data)
 	if err != nil {
