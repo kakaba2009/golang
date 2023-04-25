@@ -221,7 +221,7 @@ func (t *TemplateRegistry) Render(w io.Writer, name string, data interface{}, c 
 
 // GetArticles responds with the list of all articles as JSON.
 func GetArticles(c echo.Context) error {
-	articles := program11.GetArticlesFromRedis(db)
+	articles, _ := program11.GetArticlesFromRedis(db)
 	c.JSON(http.StatusOK, articles)
 	return nil
 }
@@ -255,7 +255,7 @@ func RedisHandler(c echo.Context) error {
 	if !IsValidateToken(token) {
 		return c.Redirect(http.StatusMovedPermanently, "/")
 	}
-	ids := program11.GetIdsFromRedis(db)
+	ids, _ := program11.GetIdsFromRedis(db)
 	// Please note the the second parameter "index.html" is the template name and should
 	// be equal to the value stated in the {{ define }} statement in "public/index.html"
 	return c.Render(http.StatusOK, "index.html", ArticleData{

@@ -47,17 +47,17 @@ func init() {
 	})
 }
 
-func Download(config ConfigFile, db *sql.DB) {
+func Download(config ConfigFile, db *sql.DB) error {
 	fmt.Println("Start to download ... ")
 	dir := "program11/public"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
 	}
 
-	program8.ReadMainPage(config.Url, dir, config, db)
+	return program8.ReadMainPage(config.Url, dir, config, db)
 }
 
-func Main() {
+func Main() error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
@@ -66,17 +66,17 @@ func Main() {
 	if len(os.Args) >= 2 {
 		// Use config file from command line
 		file = os.Args[1]
-		fmt.Println("Use config file " + file)
+		log.Println("Use config file " + file)
 	}
 
 	conFile, err := os.ReadFile(file)
 	if err != nil {
-		fmt.Print(err)
-		return
+		log.Println(err)
+		return err
 	}
 	var config ConfigFile
 	err = json.Unmarshal(conFile, &config)
-	fmt.Println(config)
+	log.Println(config)
 
 	db, _ = sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
 	defer db.Close()
@@ -91,9 +91,11 @@ func Main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := e.Shutdown(ctx); err != nil {
-		e.Logger.Fatal(err)
+		log.Println(err)
+		return err
 	}
-	fmt.Println("Exiting ECHO ...")
+	fmt.Println("Exiting ECHO Server ...")
+	return nil
 }
 
 func PeriodicAction(config ConfigFile, quit chan os.Signal, db *sql.DB) {
@@ -137,7 +139,7 @@ func (t *TemplateRegistry) Render(w io.Writer, name string, data interface{}, c 
 	return t.templates.ExecuteTemplate(w, name, data)
 }
 
-func GetArticlesFromRedis(db *sql.DB) []Article {
+func GetArticlesFromRedis(db *sql.DB) ([]Article, error) {
 	var data []Article
 
 	val, err := rdb.Get(ctx, "articles").Result()
@@ -148,25 +150,29 @@ func GetArticlesFromRedis(db *sql.DB) []Article {
 		// Update redis in-memory data
 		json, err := json.Marshal(data)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
+			return nil, err
 		}
 		err = rdb.Set(ctx, "articles", json, 0).Err()
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
+			return nil, err
 		}
-		return data
+		return data, nil
 	}
 
 	json.Unmarshal([]byte(val), &data)
 
-	return data
+	return data, nil
 }
 
 // GetArticles responds with the list of all articles as JSON.
 func GetArticles(c echo.Context) error {
-	articles := GetArticlesFromRedis(db)
-	c.JSON(http.StatusOK, articles)
-	return nil
+	articles, err := GetArticlesFromRedis(db)
+	if err != nil {
+		return c.JSON(http.StatusNotAcceptable, err.Error())
+	}
+	return c.JSON(http.StatusOK, articles)
 }
 
 func DeleteArticleFromDatabase(db *sql.DB, id string) (string, error) {
@@ -225,7 +231,7 @@ func UpdateArticle(c echo.Context) error {
 	return c.JSON(http.StatusOK, article)
 }
 
-func GetIdsFromRedis(db *sql.DB) []string {
+func GetIdsFromRedis(db *sql.DB) ([]string, error) {
 	var data []string
 
 	// Lookup ids in Redis first
@@ -237,18 +243,20 @@ func GetIdsFromRedis(db *sql.DB) []string {
 		// Update redis in-memory data
 		json, err := json.Marshal(data)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
+			return nil, err
 		}
 		err = rdb.Set(ctx, "ids", json, 0).Err()
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
+			return nil, err
 		}
-		return data
+		return data, nil
 	}
 
 	json.Unmarshal([]byte(val), &data)
 
-	return data
+	return data, nil
 }
 
 func RedisHandler(c echo.Context) error {
@@ -257,7 +265,7 @@ func RedisHandler(c echo.Context) error {
 	if ip == "" {
 		cookiehandler.SetClientCookie(c)
 	}
-	ids := GetIdsFromRedis(db)
+	ids, _ := GetIdsFromRedis(db)
 	// Please note the the second parameter "index.html" is the template name and should
 	// be equal to the value stated in the {{ define }} statement in "public/index.html"
 	return c.Render(http.StatusOK, "index.html", ArticleData{
@@ -266,22 +274,27 @@ func RedisHandler(c echo.Context) error {
 	})
 }
 
-func PeriodicUpdateRedis(db *sql.DB) {
-	var data []Article
-
-	data, _ = program10.GetArticlesFromDatabase(db)
+func PeriodicUpdateRedis(db *sql.DB) error {
+	data, err0 := program10.GetArticlesFromDatabase(db)
+	if err0 != nil {
+		log.Println(err0)
+		return err0
+	}
 	// Update redis in-memory data
 	json1, err := json.Marshal(data)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
+		return err
 	}
 	err = rdb.Set(ctx, "articles", json1, 0).Err()
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
+		return err
 	}
 
 	ids, _ := program7.GetIdsFromDatabase(db)
 	// Update redis in-memory data
 	json2, _ := json.Marshal(ids)
 	rdb.Set(ctx, "ids", json2, 0)
+	return nil
 }
