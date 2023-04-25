@@ -64,22 +64,25 @@ func Main() error {
 		e.Logger.Fatal(err)
 		return err
 	}
-	log.Println("Exiting ECHO ...")
+	log.Println("Exiting ECHO Server ...")
 
 	return nil
 }
 
-func PeriodicDownload(config ConfigFile, quit chan os.Signal) {
-	defer fmt.Println("Exiting timer download")
+func PeriodicDownload(config ConfigFile, quit chan os.Signal) error {
+	defer log.Println("Exiting periodic download")
 	ticker := time.NewTicker(time.Minute * time.Duration(config.Interval))
 	for {
 		select {
 		case t := <-ticker.C:
-			fmt.Println("Ticking at", t)
-			program5.Download(config)
+			log.Println("Ticking at", t)
+			err := program5.Download(config)
+			if err != nil {
+				log.Println(err)
+			}
 		case <-quit:
 			fmt.Println("Received CTRL+C, exiting ...")
-			return
+			return nil
 		}
 	}
 }
