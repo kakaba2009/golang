@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -15,8 +15,6 @@ import (
 	"github.com/kakaba2009/golang/program5"
 	"github.com/labstack/echo/v4"
 )
-
-var wg sync.WaitGroup
 
 type ConfigFile = global.ConfigFile
 
@@ -32,7 +30,7 @@ func StartEcho() *echo.Echo {
 	return e
 }
 
-func Main() {
+func Main() error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
@@ -41,17 +39,17 @@ func Main() {
 	if len(os.Args) >= 2 {
 		// Use config file from command line
 		file = os.Args[1]
-		fmt.Println("Use config file " + file)
+		log.Println("Use config file " + file)
 	}
 
 	conFile, err := os.ReadFile(file)
 	if err != nil {
-		fmt.Print(err)
-		return
+		log.Println(err)
+		return err
 	}
 	var config ConfigFile
 	err = json.Unmarshal(conFile, &config)
-	fmt.Println(config)
+	log.Println(config)
 
 	// Start Web Server
 	e := StartEcho()
@@ -64,8 +62,11 @@ func Main() {
 	defer cancel()
 	if err := e.Shutdown(ctx); err != nil {
 		e.Logger.Fatal(err)
+		return err
 	}
-	fmt.Println("Exiting ECHO ...")
+	log.Println("Exiting ECHO ...")
+
+	return nil
 }
 
 func PeriodicDownload(config ConfigFile, quit chan os.Signal) {
