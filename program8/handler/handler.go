@@ -5,14 +5,12 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/kakaba2009/golang/global"
 	"github.com/kakaba2009/golang/program7"
 	"github.com/labstack/echo/v4"
 )
 
-type ArticleData struct {
-	Title       string
-	ArticleList []string
-}
+type ArticleData = global.ArticleData
 
 var db *sql.DB
 var err error

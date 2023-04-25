@@ -60,7 +60,7 @@ func ReadSubPage(job chan string, dir string, config ConfigFile, wg *sync.WaitGr
 			continue
 		}
 		content := doc.Find("p").Text()
-		program8.WriteFile(dir, name, string(content))
+		program5.WriteFile(dir, name, string(content))
 		res.Body.Close()
 		if err != nil {
 			log.Fatal(err)

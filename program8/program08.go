@@ -18,36 +18,30 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/kakaba2009/golang/global"
 	"github.com/kakaba2009/golang/program5"
 	"github.com/kakaba2009/golang/program7"
 	"github.com/kakaba2009/golang/program8/handler"
 	"github.com/labstack/echo/v4"
 )
 
-type ConfigFile struct {
-	Url      string `json:"url"`
-	Threads  int    `json:"threads"`
-	Interval int    `json:"interval"`
-}
+type ConfigFile = global.ConfigFile
 
-type Record struct {
-	Id    string
-	Title string
-	Url   string
-}
+type Record = global.Record
 
 type TemplateRegistry struct {
 	templates *template.Template
 }
 
-func FindLinks(resp *http.Response, job chan string, db *sql.DB, wg *sync.WaitGroup) {
-	fmt.Println("Start to find links ... ")
+func FindLinks(resp *http.Response, job chan string, db *sql.DB, wg *sync.WaitGroup) error {
+	log.Println("Start to find links ... ")
 	defer close(job)
 	defer wg.Done()
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return err
 	}
 
 	doc.Find("li").Each(func(i int, s *goquery.Selection) {
@@ -56,44 +50,17 @@ func FindLinks(resp *http.Response, job chan string, db *sql.DB, wg *sync.WaitGr
 			s.Find("a").Each(func(i int, s *goquery.Selection) {
 				url, _ := s.Attr("href")
 				txt, _ := s.Attr("title")
-				ProcessText(job, url, txt, ids)
+				program5.ProcessText(job, url, txt, ids)
 				program7.WriteToDatabase(db, ids, txt, url)
 			})
 		}
 	})
-}
 
-func ProcessText(job chan string, url string, title string, id string) {
-	fmt.Println("ProcessText ... ")
-	// Ignore other web page url links
-	if strings.Contains(url, "http:") || strings.Contains(url, "https:") {
-		return
-	}
-	if strings.TrimSpace(title) != "" && strings.TrimSpace(url) != "" {
-		jobData := url + "|" + title + "|" + id
-		job <- jobData
-		fmt.Println(jobData)
-	}
-}
-
-func WriteFile(dir string, name string, content string) {
-	full := program5.FullName(dir, name)
-	f, err := os.Create(full)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	defer f.Close()
-
-	_, err2 := f.WriteString(content)
-	if err2 != nil {
-		log.Fatal(err2)
-	}
-	fmt.Println("WriteFile done")
+	return nil
 }
 
 func ReadSubPage(job chan string, dir string, config ConfigFile, wg *sync.WaitGroup) {
-	fmt.Println("ReadSubPage ... ")
+	log.Println("ReadSubPage ... ")
 	defer wg.Done()
 	for data := range job {
 		links := strings.Split(data, "|")
@@ -118,50 +85,50 @@ func ReadSubPage(job chan string, dir string, config ConfigFile, wg *sync.WaitGr
 			continue
 		}
 		content := doc.Find("p").Text()
-		WriteFile(dir, name, string(content))
-		res.Body.Close()
+		err = program5.WriteFile(dir, name, string(content))
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
+		res.Body.Close()
 	}
 }
 
-func ReadMainPage(link string, dir string, config ConfigFile, db *sql.DB, wg *sync.WaitGroup) {
-	fmt.Println("ReadMainPage ... ")
+func ReadMainPage(link string, dir string, config ConfigFile, db *sql.DB) error {
+	var wg sync.WaitGroup
+
+	log.Println("ReadMainPage ... ")
 	job := make(chan string)
 
 	res, err := http.Get(link)
 	if err != nil {
-		log.Fatal(err)
-		return
+		log.Println(err)
+		return err
 	}
 
 	wg.Add(1)
-	go FindLinks(res, job, db, wg)
+	go FindLinks(res, job, db, &wg)
 
 	threads := config.Threads
 	wg.Add(threads)
 	for i := 1; i <= threads; i++ {
-		go ReadSubPage(job, dir, config, wg)
+		go ReadSubPage(job, dir, config, &wg)
 	}
 
 	wg.Wait()
-	res.Body.Close()
+	return res.Body.Close()
 }
 
-func Download(config ConfigFile, db *sql.DB, wg *sync.WaitGroup) {
+func Download(config ConfigFile, db *sql.DB) error {
 	fmt.Println("Start to download ... ")
 	dir := "program8/public"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
 	}
 
-	ReadMainPage(config.Url, dir, config, db, wg)
+	return ReadMainPage(config.Url, dir, config, db)
 }
 
-func Main() {
-	var wg sync.WaitGroup
-
+func Main() error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
@@ -175,8 +142,8 @@ func Main() {
 
 	conFile, err := os.ReadFile(file)
 	if err != nil {
-		fmt.Print(err)
-		return
+		log.Print(err)
+		return err
 	}
 	var config ConfigFile
 	err = json.Unmarshal(conFile, &config)
@@ -185,34 +152,37 @@ func Main() {
 	db, err0 := sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
 	defer db.Close()
 	if err0 != nil {
-		log.Fatal(err0)
+		log.Println(err0)
+		return err0
 	}
 
 	// Start Web Server
 	e := StartEcho()
 
 	// Below function blocks
-	timerDownload(config, quit, db, &wg)
+	PeriodicDownload(config, quit, db)
 
 	//graceful shutdown ECHO
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := e.Shutdown(ctx); err != nil {
-		e.Logger.Fatal(err)
+		log.Println(err)
+		return err
 	}
-	fmt.Println("Exiting ECHO ...")
+	log.Println("Exiting ECHO Server ...")
+	return nil
 }
 
-func timerDownload(config ConfigFile, quit chan os.Signal, db *sql.DB, wg *sync.WaitGroup) {
-	defer fmt.Println("Exiting timer download")
+func PeriodicDownload(config ConfigFile, quit chan os.Signal, db *sql.DB) {
+	defer fmt.Println("Exiting periodic download")
 	ticker := time.NewTicker(time.Minute * time.Duration(config.Interval))
 	for {
 		select {
 		case t := <-ticker.C:
-			fmt.Println("Ticking at", t)
-			Download(config, db, wg)
+			log.Println("Ticking at", t)
+			Download(config, db)
 		case <-quit:
-			fmt.Println("Received CTRL+C, exiting ...")
+			log.Println("Received CTRL+C, exiting ...")
 			return
 		}
 	}
