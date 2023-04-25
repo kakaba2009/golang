@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 
-	"github.com/kakaba2009/golang/program8"
+	"github.com/kakaba2009/golang/program9"
 )
 
 func main() {
-	err := program8.Main()
+	err := program9.Main()
 
 	if err != nil {
 		fmt.Println(err)
