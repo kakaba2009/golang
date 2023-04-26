@@ -1,16 +1,16 @@
 package main
 
 import (
-	"fmt"
+	"log"
 
-	"github.com/kakaba2009/golang/program10"
+	"github.com/kakaba2009/golang/program11"
 )
 
 func main() {
-	err := program10.Main()
+	err := program11.Main()
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 }
