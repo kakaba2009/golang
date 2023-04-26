@@ -99,16 +99,19 @@ func Main() error {
 }
 
 func PeriodicAction(config ConfigFile, quit chan os.Signal, db *sql.DB) {
-	defer fmt.Println("Exiting timer download")
+	defer log.Println("Exiting Periodic Action")
 	ticker := time.NewTicker(time.Minute * time.Duration(config.Interval))
 	for {
 		select {
 		case t := <-ticker.C:
-			fmt.Println("Ticking at", t)
+			log.Println("Ticking at", t)
 			Download(config, db)
-			PeriodicUpdateRedis(db)
+			err := PeriodicUpdateRedis(db)
+			if err != nil {
+				log.Println(err)
+			}
 		case <-quit:
-			fmt.Println("Received CTRL+C, exiting ...")
+			log.Println("Received CTRL+C, exiting ...")
 			return
 		}
 	}

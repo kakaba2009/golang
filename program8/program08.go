@@ -101,7 +101,6 @@ func ReadMainPage(link string, dir string, config ConfigFile, db *sql.DB) error 
 
 	res, err := http.Get(link)
 	if err != nil {
-		log.Println(err)
 		return err
 	}
 
@@ -180,7 +179,10 @@ func PeriodicDownload(config ConfigFile, quit chan os.Signal, db *sql.DB) {
 		select {
 		case t := <-ticker.C:
 			log.Println("Ticking at", t)
-			Download(config, db)
+			err := Download(config, db)
+			if err != nil {
+				log.Println(err)
+			}
 		case <-quit:
 			log.Println("Received CTRL+C, exiting ...")
 			return
