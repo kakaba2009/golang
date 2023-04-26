@@ -32,10 +32,13 @@ type TemplateRegistry struct {
 var db *sql.DB
 
 func Download(config ConfigFile, db *sql.DB) error {
-	fmt.Println("Start to download ... ")
+	log.Println("Start to download ... ")
 	dir := "program10/public"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
+		if err != nil {
+			return err
+		}
 	}
 
 	return program8.ReadMainPage(config.Url, dir, config, db)
@@ -62,7 +65,11 @@ func Main() error {
 	err = json.Unmarshal(conFile, &config)
 	log.Println(config)
 
-	db, _ = sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
+	db, err = sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
+	if err != nil {
+		log.Println(err)
+		return err
+	}
 	defer db.Close()
 
 	// Start Web Server

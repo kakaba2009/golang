@@ -32,6 +32,9 @@ func Download(config ConfigFile, db *sql.DB) error {
 	dir := "program9/public"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
+		if err != nil {
+			return err
+		}
 	}
 
 	return program8.ReadMainPage(config.Url, dir, config, db)
@@ -51,18 +54,23 @@ func Main() error {
 
 	conFile, err := os.ReadFile(file)
 	if err != nil {
-		log.Print(err)
+		log.Println(err)
 		return err
 	}
 	var config ConfigFile
 	err = json.Unmarshal(conFile, &config)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
 	log.Println(config)
 
-	db, err0 := sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
+	var db *sql.DB
+	db, err = sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
 	defer db.Close()
-	if err0 != nil {
-		log.Println(err0)
-		return err0
+	if err != nil {
+		log.Println(err)
+		return err
 	}
 
 	// Start Web Server
@@ -79,7 +87,7 @@ func Main() error {
 		return err
 	}
 
-	fmt.Println("Exiting ECHO ...")
+	log.Println("Exiting ECHO Server ...")
 	return nil
 }
 
@@ -90,7 +98,10 @@ func PeriodicDownload(config ConfigFile, quit chan os.Signal, db *sql.DB) {
 		select {
 		case t := <-ticker.C:
 			log.Println("Ticking at", t)
-			Download(config, db)
+			err := Download(config, db)
+			if err != nil {
+				log.Println(err)
+			}
 		case <-quit:
 			log.Println("Received CTRL+C, exiting ...")
 			return

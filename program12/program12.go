@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -59,10 +58,13 @@ func init() {
 }
 
 func Download(config ConfigFile, db *sql.DB) error {
-	fmt.Println("Start to download ... ")
+	log.Println("Start to download ... ")
 	dir := "program12/public"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
+		if err != nil {
+			return err
+		}
 	}
 
 	return program8.ReadMainPage(config.Url, dir, config, db)

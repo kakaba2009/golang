@@ -136,23 +136,28 @@ func Main() error {
 	if len(os.Args) >= 2 {
 		// Use config file from command line
 		file = os.Args[1]
-		fmt.Println("Use config file " + file)
+		log.Println("Use config file " + file)
 	}
 
 	conFile, err := os.ReadFile(file)
 	if err != nil {
-		log.Print(err)
+		log.Println(err)
 		return err
 	}
 	var config ConfigFile
 	err = json.Unmarshal(conFile, &config)
-	fmt.Println(config)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	log.Println(config)
 
-	db, err0 := sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
+	var db *sql.DB
+	db, err = sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
 	defer db.Close()
-	if err0 != nil {
-		log.Println(err0)
-		return err0
+	if err != nil {
+		log.Println(err)
+		return err
 	}
 
 	// Start Web Server

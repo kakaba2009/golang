@@ -78,7 +78,11 @@ func Main() error {
 	err = json.Unmarshal(conFile, &config)
 	log.Println(config)
 
-	db, _ = sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
+	db, err = sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
+	if err != nil {
+		log.Println(err)
+		return err
+	}
 	defer db.Close()
 
 	// Start Web Server
@@ -94,7 +98,7 @@ func Main() error {
 		log.Println(err)
 		return err
 	}
-	fmt.Println("Exiting ECHO Server ...")
+	log.Println("Exiting ECHO Server ...")
 	return nil
 }
 
@@ -105,8 +109,11 @@ func PeriodicAction(config ConfigFile, quit chan os.Signal, db *sql.DB) {
 		select {
 		case t := <-ticker.C:
 			log.Println("Ticking at", t)
-			Download(config, db)
-			err := PeriodicUpdateRedis(db)
+			err := Download(config, db)
+			if err != nil {
+				log.Println(err)
+			}
+			err = PeriodicUpdateRedis(db)
 			if err != nil {
 				log.Println(err)
 			}

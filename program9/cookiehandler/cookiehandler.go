@@ -49,7 +49,10 @@ func CookieHandler(c echo.Context) error {
 	if ip == "" {
 		SetClientCookie(c)
 	}
-	ids, _ := program7.GetIdsFromDatabase(db)
+	ids, err := program7.GetIdsFromDatabase(db)
+	if err != nil {
+		return c.JSON(http.StatusNotAcceptable, err.Error())
+	}
 	// Please note the the second parameter "index.html" is the template name and should
 	// be equal to the value stated in the {{ define }} statement in "public/index.html"
 	return c.Render(http.StatusOK, "index.html", ArticleData{
