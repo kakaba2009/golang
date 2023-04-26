@@ -233,28 +233,35 @@ func UpdateArticle(c echo.Context) error {
 
 func GetIdsFromRedis(db *sql.DB) ([]string, error) {
 	var data []string
+	var err error
+	var val string
 
 	// Lookup ids in Redis first
-	val, err := rdb.Get(ctx, "ids").Result()
+	val, err = rdb.Get(ctx, "ids").Result()
 
 	if err != nil {
 		// Does not exist in Redis yet
-		data, _ = program7.GetIdsFromDatabase(db)
-		// Update redis in-memory data
-		json, err := json.Marshal(data)
+		data, err = program7.GetIdsFromDatabase(db)
 		if err != nil {
-			log.Println(err)
 			return nil, err
 		}
-		err = rdb.Set(ctx, "ids", json, 0).Err()
+		// Update redis in-memory data
+		var jobj []byte
+		jobj, err = json.Marshal(data)
 		if err != nil {
-			log.Println(err)
+			return nil, err
+		}
+		err = rdb.Set(ctx, "ids", jobj, 0).Err()
+		if err != nil {
 			return nil, err
 		}
 		return data, nil
 	}
 
-	json.Unmarshal([]byte(val), &data)
+	err = json.Unmarshal([]byte(val), &data)
+	if err != nil {
+		return nil, err
+	}
 
 	return data, nil
 }
@@ -265,7 +272,10 @@ func RedisHandler(c echo.Context) error {
 	if ip == "" {
 		cookiehandler.SetClientCookie(c)
 	}
-	ids, _ := GetIdsFromRedis(db)
+	ids, err := GetIdsFromRedis(db)
+	if err != nil {
+		return c.JSON(http.StatusNotAcceptable, err.Error())
+	}
 	// Please note the the second parameter "index.html" is the template name and should
 	// be equal to the value stated in the {{ define }} statement in "public/index.html"
 	return c.Render(http.StatusOK, "index.html", ArticleData{
@@ -275,26 +285,29 @@ func RedisHandler(c echo.Context) error {
 }
 
 func PeriodicUpdateRedis(db *sql.DB) error {
-	data, err0 := program10.GetArticlesFromDatabase(db)
-	if err0 != nil {
-		log.Println(err0)
-		return err0
+	data, err := program10.GetArticlesFromDatabase(db)
+	if err != nil {
+		return err
 	}
 	// Update redis in-memory data
 	json1, err := json.Marshal(data)
 	if err != nil {
-		log.Println(err)
 		return err
 	}
 	err = rdb.Set(ctx, "articles", json1, 0).Err()
 	if err != nil {
-		log.Println(err)
 		return err
 	}
 
-	ids, _ := program7.GetIdsFromDatabase(db)
+	ids, err := program7.GetIdsFromDatabase(db)
+	if err != nil {
+		return err
+	}
 	// Update redis in-memory data
-	json2, _ := json.Marshal(ids)
+	json2, err := json.Marshal(ids)
+	if err != nil {
+		return err
+	}
 	rdb.Set(ctx, "ids", json2, 0)
 	return nil
 }
