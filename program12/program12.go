@@ -10,18 +10,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
-	"sync"
 	"syscall"
 	"text/template"
 	"time"
 
-	"github.com/PuerkitoBio/goquery"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/kakaba2009/golang/global"
 	"github.com/kakaba2009/golang/program11"
-	"github.com/kakaba2009/golang/program5"
 	"github.com/kakaba2009/golang/program8"
 	"github.com/kakaba2009/golang/program9/cookiehandler"
 	"github.com/labstack/echo/v4"
@@ -62,76 +58,17 @@ func init() {
 	})
 }
 
-func ReadSubPage(job chan string, dir string, config ConfigFile, wg *sync.WaitGroup) {
-	fmt.Println("ReadSubPage ... ")
-	defer wg.Done()
-	for data := range job {
-		links := strings.Split(data, "|")
-		url := links[0]
-		if strings.Contains(url, "http:") || strings.Contains(url, "https:") {
-			continue
-		}
-		// Use ID as name for file save
-		name := links[2]
-		if program5.IsDownloaded(dir, name) {
-			fmt.Println(url + " already downloaded, skip ...")
-			continue
-		}
-		res, err := http.Get(config.Url + url)
-		if err != nil {
-			log.Fatal(err)
-			continue
-		}
-		doc, err := goquery.NewDocumentFromReader(res.Body)
-		if err != nil {
-			log.Fatal(err)
-			continue
-		}
-		content := doc.Find("p").Text()
-		program5.WriteFile(dir, name, string(content))
-		res.Body.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-}
-
-func ReadMainPage(link string, dir string, config ConfigFile, db *sql.DB, wg *sync.WaitGroup) {
-	fmt.Println("ReadMainPage ... ")
-	job := make(chan string)
-
-	res, err := http.Get(link)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	wg.Add(1)
-	go program8.FindLinks(res, job, db, wg)
-
-	threads := config.Threads
-	wg.Add(threads)
-	for i := 1; i <= threads; i++ {
-		go ReadSubPage(job, dir, config, wg)
-	}
-
-	wg.Wait()
-	res.Body.Close()
-}
-
-func Download(config ConfigFile, db *sql.DB, wg *sync.WaitGroup) {
+func Download(config ConfigFile, db *sql.DB) error {
 	fmt.Println("Start to download ... ")
 	dir := "program12/public"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
 	}
 
-	ReadMainPage(config.Url, dir, config, db, wg)
+	return program8.ReadMainPage(config.Url, dir, config, db)
 }
 
-func Main() {
-	var wg sync.WaitGroup
-
+func Main() error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
@@ -140,47 +77,63 @@ func Main() {
 	if len(os.Args) >= 2 {
 		// Use config file from command line
 		file = os.Args[1]
-		fmt.Println("Use config file " + file)
+		log.Println("Use config file " + file)
 	}
 
 	conFile, err := os.ReadFile(file)
 	if err != nil {
-		fmt.Print(err)
-		return
+		log.Println(err)
+		return err
 	}
 	var config ConfigFile
 	err = json.Unmarshal(conFile, &config)
-	fmt.Println(config)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	log.Println(config)
 
-	db, _ = sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
+	db, err = sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
+	if err != nil {
+		log.Println(err)
+		return err
+	}
 	defer db.Close()
 
 	// Start Web Server
 	e := StartWebServer()
 
 	// Below function blocks
-	PeriodicAction(config, quit, db, &wg)
+	PeriodicAction(config, quit, db)
 
 	//graceful shutdown ECHO
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := e.Shutdown(ctx); err != nil {
-		e.Logger.Fatal(err)
+		log.Println(err)
+		return err
 	}
-	fmt.Println("Exiting ECHO ...")
+	log.Println("Exiting ECHO Server ...")
+	return nil
 }
 
-func PeriodicAction(config ConfigFile, quit chan os.Signal, db *sql.DB, wg *sync.WaitGroup) {
-	defer fmt.Println("Exiting timer download")
+func PeriodicAction(config ConfigFile, quit chan os.Signal, db *sql.DB) {
+	defer log.Println("Exiting Periodic Action")
 	ticker := time.NewTicker(time.Minute * time.Duration(config.Interval))
 	for {
 		select {
 		case t := <-ticker.C:
-			fmt.Println("Ticking at", t)
-			Download(config, db, wg)
-			program11.PeriodicUpdateRedis(db)
+			log.Println("Ticking at", t)
+			err := Download(config, db)
+			if err != nil {
+				log.Println(err)
+			}
+			err = program11.PeriodicUpdateRedis(db)
+			if err != nil {
+				log.Println(err)
+			}
 		case <-quit:
-			fmt.Println("Received CTRL+C, exiting ...")
+			log.Println("Received CTRL+C, exiting ...")
 			return
 		}
 	}
@@ -221,9 +174,11 @@ func (t *TemplateRegistry) Render(w io.Writer, name string, data interface{}, c 
 
 // GetArticles responds with the list of all articles as JSON.
 func GetArticles(c echo.Context) error {
-	articles, _ := program11.GetArticlesFromRedis(db)
-	c.JSON(http.StatusOK, articles)
-	return nil
+	articles, err := program11.GetArticlesFromRedis(db)
+	if err != nil {
+		return c.JSON(http.StatusNotAcceptable, err.Error())
+	}
+	return c.JSON(http.StatusOK, articles)
 }
 
 func DeleteArticle(c echo.Context) error {
@@ -250,12 +205,18 @@ func UpdateArticle(c echo.Context) error {
 }
 
 func RedisHandler(c echo.Context) error {
-	token := GetTokenCookie(c)
+	token, err := GetTokenCookie(c)
+	if err != nil {
+		return c.Redirect(http.StatusMovedPermanently, "/")
+	}
 	// If client token cookie not valid, redirect to login page
 	if !IsValidateToken(token) {
 		return c.Redirect(http.StatusMovedPermanently, "/")
 	}
-	ids, _ := program11.GetIdsFromRedis(db)
+	ids, err := program11.GetIdsFromRedis(db)
+	if err != nil {
+		return c.JSON(http.StatusNotAcceptable, err.Error())
+	}
 	// Please note the the second parameter "index.html" is the template name and should
 	// be equal to the value stated in the {{ define }} statement in "public/index.html"
 	return c.Render(http.StatusOK, "index.html", ArticleData{
@@ -288,8 +249,11 @@ func LoginHandler(c echo.Context) error {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	// Generate encoded token and send it as response.
-	tkn, _ := token.SignedString(myKey)
-	fmt.Print("token ", tkn)
+	tkn, err := token.SignedString(myKey)
+	if err != nil {
+		return echo.ErrUnauthorized
+	}
+	log.Print("token ", tkn)
 
 	// Set JWT token in client cookie
 	SetTokenCookie(c, tkn)
@@ -305,12 +269,12 @@ func SetTokenCookie(c echo.Context, tkn string) {
 	c.SetCookie(cookie)
 }
 
-func GetTokenCookie(c echo.Context) string {
+func GetTokenCookie(c echo.Context) (string, error) {
 	cookie, err := c.Cookie("token")
 	if err != nil {
-		return ""
+		return "", err
 	}
-	return cookie.Value
+	return cookie.Value, nil
 }
 
 func RootHandler(c echo.Context) error {
@@ -328,7 +292,10 @@ func RootHandler(c echo.Context) error {
 }
 
 func ArticleHandler(c echo.Context) error {
-	token := GetTokenCookie(c)
+	token, err := GetTokenCookie(c)
+	if err != nil {
+		return c.Redirect(http.StatusMovedPermanently, "/")
+	}
 	// If client token cookie not valid, redirect to login page
 	if !IsValidateToken(token) {
 		return c.Redirect(http.StatusMovedPermanently, "/")
