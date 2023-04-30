@@ -193,10 +193,10 @@ func DeleteArticleFromDatabase(db *sql.DB, id string) (string, error) {
 	res.Scan(&row.Title)
 
 	del := "DELETE FROM golang.article WHERE id = ?"
-	_, err2 := db.Exec(del, id)
-	if err2 != nil {
-		log.Fatal(err2)
-		return row.Title, err2
+	_, err := db.Exec(del, id)
+	if err != nil {
+		log.Fatal(err)
+		return row.Title, err
 	}
 
 	// Delete the data from Redis as well
