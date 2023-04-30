@@ -2,7 +2,7 @@ package program1
 
 import (
 	"encoding/csv"
-	"fmt"
+	"log"
 	"net/http"
 	"os"
 
@@ -12,7 +12,7 @@ import (
 func ParseTokens(resp *http.Response) error {
 	file, err := os.Create("result.csv")
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return err
 	}
 	defer file.Close()
@@ -21,19 +21,19 @@ func ParseTokens(resp *http.Response) error {
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return err
 	}
 
 	err = ProcessText([]string{"id", "url", "title"}, writer)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 
 	title := doc.Find("title").Text()
 	err = ProcessText([]string{"title", "", title}, writer)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 
 	doc.Find("li").Each(func(i int, s *goquery.Selection) {
@@ -44,7 +44,7 @@ func ParseTokens(resp *http.Response) error {
 				txt, _ := s.Attr("title")
 				err = ProcessText([]string{ids, url, txt}, writer)
 				if err != nil {
-					fmt.Println(err)
+					log.Println(err)
 				}
 			})
 		}
@@ -55,7 +55,7 @@ func ParseTokens(resp *http.Response) error {
 
 func ProcessText(data []string, writer *csv.Writer) error {
 	if len(data) > 0 {
-		fmt.Println(data)
+		log.Println(data)
 		return writer.Write(data)
 	}
 	return nil
@@ -64,13 +64,13 @@ func ProcessText(data []string, writer *csv.Writer) error {
 func ReadPage(link string) error {
 	res, err := http.Get(link)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return err
 	}
 
 	err = ParseTokens(res)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return err
 	}
 
