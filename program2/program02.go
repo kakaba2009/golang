@@ -21,7 +21,7 @@ func FindLinks(resp *http.Response, job chan string, wg *sync.WaitGroup) {
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 
@@ -45,7 +45,7 @@ func ProcessText(job chan string, url string, title string) {
 	if strings.TrimSpace(title) != "" && strings.TrimSpace(url) != "" {
 		jobData := url + "|" + title
 		job <- jobData
-		fmt.Println(jobData)
+		log.Println(jobData)
 	}
 }
 
@@ -65,7 +65,7 @@ func WriteFile(dir string, name string, content string) error {
 		return err
 	}
 
-	fmt.Println("done")
+	log.Println("done")
 	return nil
 }
 
@@ -102,7 +102,7 @@ func ReadMainPage(link string, job chan string, dir string) error {
 
 	res, err := http.Get(link)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return err
 	}
 
@@ -125,7 +125,7 @@ func Main() error {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			return err
 		}
 	}
