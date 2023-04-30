@@ -132,19 +132,19 @@ func (t *TemplateRegistry) Render(w io.Writer, name string, data interface{}, c 
 
 func GetArticlesFromDatabase(db *sql.DB) ([]Article, error) {
 	sql := "SELECT id, title FROM article"
-	res, err1 := db.Query(sql)
-	if err1 != nil {
-		log.Println(err1)
-		return nil, err1
+	res, err := db.Query(sql)
+	if err != nil {
+		log.Println(err)
+		return nil, err
 	}
 
 	var articles []Article
 	for res.Next() {
 		var row Article
-		err2 := res.Scan(&row.Id, &row.Title)
-		if err2 != nil {
-			log.Println(err2)
-			return nil, err2
+		err = res.Scan(&row.Id, &row.Title)
+		if err != nil {
+			log.Println(err)
+			return nil, err
 		}
 		articles = append(articles, row)
 	}
@@ -168,10 +168,10 @@ func DeleteArticleFromDatabase(db *sql.DB, id string) (string, error) {
 	res.Scan(&row.Title)
 
 	del := "DELETE FROM golang.article WHERE id = ?"
-	_, err2 := db.Exec(del, id)
-	if err2 != nil {
-		log.Fatal(err2)
-		return row.Title, err2
+	_, err := db.Exec(del, id)
+	if err != nil {
+		log.Fatal(err)
+		return row.Title, err
 	}
 
 	return row.Title, nil
