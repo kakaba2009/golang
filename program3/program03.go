@@ -45,12 +45,12 @@ func WriteFile(dir string, name string, content string) error {
 		log.Println(err)
 		return err
 	}
-	fmt.Println("WriteFile done")
+	log.Println("WriteFile done")
 	return nil
 }
 
 func ReadSubPage(job chan string, dir string, wg *sync.WaitGroup) {
-	fmt.Println("ReadSubPage ... ")
+	log.Println("ReadSubPage ... ")
 	defer wg.Done()
 	for data := range job {
 		links := strings.Split(data, "|")
@@ -85,7 +85,7 @@ func ReadSubPage(job chan string, dir string, wg *sync.WaitGroup) {
 func ReadMainPage(link string, dir string) error {
 	var wg sync.WaitGroup
 
-	fmt.Println("ReadMainPage ... ")
+	log.Println("ReadMainPage ... ")
 	job := make(chan string)
 
 	res, err := http.Get(link)
@@ -108,7 +108,7 @@ func ReadMainPage(link string, dir string) error {
 }
 
 func Download() error {
-	fmt.Println("Start to download ... ")
+	log.Println("Start to download ... ")
 	dir := time.Now().Format("2006-01-02")
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
@@ -123,7 +123,7 @@ func Main() error {
 			log.Println(err)
 			return err
 		}
-		fmt.Println("Sleep ...")
+		log.Println("Sleep ...")
 		time.Sleep(time.Minute)
 	}
 }
