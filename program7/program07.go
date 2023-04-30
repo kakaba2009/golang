@@ -67,15 +67,15 @@ func FindLinks(resp *http.Response, job chan string, db *sql.DB, wg *sync.WaitGr
 func WriteToDatabase(db *sql.DB, id string, title string, url string) error {
 	// Delete the same id row if exists
 	del := "DELETE FROM article WHERE id = ?"
-	_, err1 := db.Exec(del, id)
-	if err1 != nil {
-		return err1
+	_, err := db.Exec(del, id)
+	if err != nil {
+		return err
 	}
 
 	sql := "INSERT INTO article(id, title, url) VALUES (?, ?, ?)"
-	_, err2 := db.Exec(sql, id, title, url)
-	if err2 != nil {
-		return err2
+	_, err = db.Exec(sql, id, title, url)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -155,11 +155,11 @@ func Main() error {
 	err = json.Unmarshal(conFile, &config)
 	log.Println(config)
 
-	db, err0 := sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
+	db, err := sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
 	defer db.Close()
-	if err0 != nil {
-		log.Println(err0)
-		return err0
+	if err != nil {
+		log.Println(err)
+		return err
 	}
 
 	// Start Web Server
@@ -198,18 +198,18 @@ func PeriodicDownload(config ConfigFile, quit chan os.Signal, db *sql.DB) {
 
 func GetIdsFromDatabase(db *sql.DB) ([]string, error) {
 	sql := "SELECT id FROM article"
-	res, err1 := db.Query(sql)
-	if err1 != nil {
-		log.Println(err1)
-		return nil, err1
+	res, err := db.Query(sql)
+	if err != nil {
+		log.Println(err)
+		return nil, err
 	}
 
 	var ids []string
 	for res.Next() {
 		var row Record
-		err2 := res.Scan(&row.Id)
-		if err2 != nil {
-			log.Fatal(err2)
+		err = res.Scan(&row.Id)
+		if err != nil {
+			log.Fatal(err)
 		}
 		ids = append(ids, row.Id)
 	}
