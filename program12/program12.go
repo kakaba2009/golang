@@ -15,6 +15,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/kakaba2009/golang/database"
 	"github.com/kakaba2009/golang/global"
 	"github.com/kakaba2009/golang/program11"
 	"github.com/kakaba2009/golang/program8"
@@ -39,7 +40,6 @@ type jwtCustomClaims struct {
 	jwt.RegisteredClaims
 }
 
-var db *sql.DB
 var ctx = context.Background()
 var rdb *redis.Client
 var myKey = []byte("secret_key")
@@ -95,11 +95,7 @@ func Main() error {
 	}
 	log.Println(config)
 
-	db, err = sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
-	if err != nil {
-		log.Println(err)
-		return err
-	}
+	db := database.DB()
 	defer db.Close()
 
 	// Start Web Server
@@ -176,7 +172,7 @@ func (t *TemplateRegistry) Render(w io.Writer, name string, data interface{}, c 
 
 // GetArticles responds with the list of all articles as JSON.
 func GetArticles(c echo.Context) error {
-	articles, err := program11.GetArticlesFromRedis(db)
+	articles, err := program11.GetArticlesFromRedis(database.DB())
 	if err != nil {
 		return c.JSON(http.StatusNotAcceptable, err.Error())
 	}
@@ -185,7 +181,7 @@ func GetArticles(c echo.Context) error {
 
 func DeleteArticle(c echo.Context) error {
 	id := c.Param("id")
-	title, err := program11.DeleteArticleFromDatabase(db, id)
+	title, err := program11.DeleteArticleFromDatabase(database.DB(), id)
 	if err != nil {
 		return c.JSON(http.StatusNotAcceptable, err.Error())
 	}
@@ -199,7 +195,7 @@ func UpdateArticle(c echo.Context) error {
 		log.Println(err)
 		return c.JSON(http.StatusBadRequest, err.Error())
 	}
-	article, err := program11.UpdateArticleFromDatabase(db, id, objRequest)
+	article, err := program11.UpdateArticleFromDatabase(database.DB(), id, objRequest)
 	if err != nil {
 		return c.JSON(http.StatusNotAcceptable, err.Error())
 	}
@@ -215,7 +211,7 @@ func RedisHandler(c echo.Context) error {
 	if !IsValidateToken(token) {
 		return c.Redirect(http.StatusMovedPermanently, "/")
 	}
-	ids, err := program11.GetIdsFromRedis(db)
+	ids, err := program11.GetIdsFromRedis(database.DB())
 	if err != nil {
 		return c.JSON(http.StatusNotAcceptable, err.Error())
 	}

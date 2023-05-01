@@ -16,6 +16,7 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/kakaba2009/golang/database"
 	"github.com/kakaba2009/golang/global"
 	"github.com/kakaba2009/golang/program8"
 	"github.com/kakaba2009/golang/program9/cookiehandler"
@@ -28,8 +29,6 @@ type Article = global.Article
 type TemplateRegistry struct {
 	templates *template.Template
 }
-
-var db *sql.DB
 
 func Download(config ConfigFile, db *sql.DB) error {
 	log.Println("Start to download ... ")
@@ -65,11 +64,7 @@ func Main() error {
 	err = json.Unmarshal(conFile, &config)
 	log.Println(config)
 
-	db, err = sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
-	if err != nil {
-		log.Println(err)
-		return err
-	}
+	db := database.DB()
 	defer db.Close()
 
 	// Start Web Server
@@ -153,7 +148,7 @@ func GetArticlesFromDatabase(db *sql.DB) ([]Article, error) {
 
 // GetArticles responds with the list of all articles as JSON.
 func GetArticles(c echo.Context) error {
-	articles, err := GetArticlesFromDatabase(db)
+	articles, err := GetArticlesFromDatabase(database.DB())
 	if err != nil {
 		return c.JSON(http.StatusNotAcceptable, err.Error())
 	}
@@ -179,7 +174,7 @@ func DeleteArticleFromDatabase(db *sql.DB, id string) (string, error) {
 
 func DeleteArticle(c echo.Context) error {
 	id := c.Param("id")
-	title, err := DeleteArticleFromDatabase(db, id)
+	title, err := DeleteArticleFromDatabase(database.DB(), id)
 	if err != nil {
 		return c.JSON(http.StatusNotAcceptable, err.Error())
 	}
@@ -201,7 +196,7 @@ func UpdateArticle(c echo.Context) error {
 		log.Println(err)
 		return c.JSON(http.StatusBadRequest, err.Error())
 	}
-	article, err := UpdateArticleFromDatabase(db, id, objRequest)
+	article, err := UpdateArticleFromDatabase(database.DB(), id, objRequest)
 	if err != nil {
 		return c.JSON(http.StatusNotAcceptable, err.Error())
 	}
