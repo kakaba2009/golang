@@ -18,6 +18,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/kakaba2009/golang/database"
 	"github.com/kakaba2009/golang/global"
 	"github.com/kakaba2009/golang/program5"
 	"github.com/kakaba2009/golang/program7"
@@ -152,13 +153,8 @@ func Main() error {
 	}
 	log.Println(config)
 
-	var db *sql.DB
-	db, err = sql.Open("mysql", "golang:3306@tcp(127.0.0.1:3306)/golang")
+	db := database.DB()
 	defer db.Close()
-	if err != nil {
-		log.Println(err)
-		return err
-	}
 
 	// Start Web Server
 	e := StartEcho()

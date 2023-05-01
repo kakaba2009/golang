@@ -3,11 +3,11 @@ package main
 import (
 	"log"
 
-	"github.com/kakaba2009/golang/program11"
+	"github.com/kakaba2009/golang/program7"
 )
 
 func main() {
-	err := program11.Main()
+	err := program7.Main()
 
 	if err != nil {
 		log.Println(err)
