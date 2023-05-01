@@ -73,6 +73,9 @@ func Main() error {
 	db := database.DB()
 	defer db.Close()
 
+	rdb := cache.Redis()
+	defer rdb.Close()
+
 	// Start Web Server
 	e := StartWebServer()
 

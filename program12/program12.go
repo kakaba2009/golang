@@ -15,6 +15,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/kakaba2009/golang/cache"
 	"github.com/kakaba2009/golang/database"
 	"github.com/kakaba2009/golang/global"
 	"github.com/kakaba2009/golang/program11"
@@ -87,6 +88,9 @@ func Main() error {
 
 	db := database.DB()
 	defer db.Close()
+
+	rdb := cache.Redis()
+	defer rdb.Close()
 
 	// Start Web Server
 	e := StartWebServer()
