@@ -22,7 +22,6 @@ import (
 	"github.com/kakaba2009/golang/program9/cookiehandler"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/redis/go-redis/v9"
 )
 
 type ConfigFile = global.ConfigFile
@@ -41,20 +40,11 @@ type jwtCustomClaims struct {
 }
 
 var ctx = context.Background()
-var rdb *redis.Client
 var myKey = []byte("secret_key")
 
 var savedPwd = map[string]string{
 	"john": "hello!",
 	"bill": "morning",
-}
-
-func init() {
-	rdb = redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
 }
 
 func Download(config ConfigFile, db *sql.DB) error {

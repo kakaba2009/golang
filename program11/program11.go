@@ -16,6 +16,7 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/kakaba2009/golang/cache"
 	"github.com/kakaba2009/golang/database"
 	"github.com/kakaba2009/golang/global"
 	"github.com/kakaba2009/golang/program10"
@@ -37,15 +38,6 @@ type TemplateRegistry struct {
 }
 
 var ctx = context.Background()
-var rdb *redis.Client
-
-func init() {
-	rdb = redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
-}
 
 func Download(config ConfigFile, db *sql.DB) error {
 	fmt.Println("Start to download ... ")
@@ -148,7 +140,7 @@ func (t *TemplateRegistry) Render(w io.Writer, name string, data interface{}, c 
 func GetArticlesFromRedis(db *sql.DB) ([]Article, error) {
 	var data []Article
 
-	val, err := rdb.Get(ctx, "articles").Result()
+	val, err := cache.Redis().Get(ctx, "articles").Result()
 
 	if err == redis.Nil {
 		// Does not exist in Redis yet
@@ -159,7 +151,7 @@ func GetArticlesFromRedis(db *sql.DB) ([]Article, error) {
 			log.Println(err)
 			return nil, err
 		}
-		err = rdb.Set(ctx, "articles", json, 0).Err()
+		err = cache.Redis().Set(ctx, "articles", json, 0).Err()
 		if err != nil {
 			log.Println(err)
 			return nil, err
@@ -196,7 +188,7 @@ func DeleteArticleFromDatabase(db *sql.DB, id string) (string, error) {
 	}
 
 	// Delete the data from Redis as well
-	rdb.Del(ctx, "articles/"+id)
+	cache.Redis().Del(ctx, "articles/"+id)
 
 	return row.Title, nil
 }
@@ -218,7 +210,7 @@ func UpdateArticleFromDatabase(db *sql.DB, id string, a Article) (Article, error
 
 	// Update the data from Redis as well
 	json, _ := json.Marshal(a)
-	rdb.Set(ctx, "articles/"+id, json, 0)
+	cache.Redis().Set(ctx, "articles/"+id, json, 0)
 
 	return a, err
 }
@@ -243,7 +235,7 @@ func GetIdsFromRedis(db *sql.DB) ([]string, error) {
 	var val string
 
 	// Lookup ids in Redis first
-	val, err = rdb.Get(ctx, "ids").Result()
+	val, err = cache.Redis().Get(ctx, "ids").Result()
 
 	if err != nil {
 		// Does not exist in Redis yet
@@ -257,7 +249,7 @@ func GetIdsFromRedis(db *sql.DB) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		err = rdb.Set(ctx, "ids", jobj, 0).Err()
+		err = cache.Redis().Set(ctx, "ids", jobj, 0).Err()
 		if err != nil {
 			return nil, err
 		}
@@ -300,7 +292,7 @@ func PeriodicUpdateRedis(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
-	err = rdb.Set(ctx, "articles", json1, 0).Err()
+	err = cache.Redis().Set(ctx, "articles", json1, 0).Err()
 	if err != nil {
 		return err
 	}
@@ -314,6 +306,6 @@ func PeriodicUpdateRedis(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
-	rdb.Set(ctx, "ids", json2, 0)
+	cache.Redis().Set(ctx, "ids", json2, 0)
 	return nil
 }
