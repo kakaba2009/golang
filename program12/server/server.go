@@ -1,4 +1,4 @@
-package program12
+package server
 
 import (
 	"context"
@@ -50,7 +50,7 @@ var savedPwd = map[string]string{
 
 func Download(config ConfigFile, db *sql.DB) error {
 	log.Println("Start to download ... ")
-	dir := "program12/public"
+	dir := "public"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.Mkdir(dir, 0755)
 		if err != nil {
@@ -65,7 +65,7 @@ func Main() error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
-	file := "program12/config.json"
+	file := "config.json"
 
 	if len(os.Args) >= 2 {
 		// Use config file from command line
@@ -138,7 +138,7 @@ func StartWebServer() *echo.Echo {
 	e.Use(middleware.Recover())
 
 	e.Renderer = &TemplateRegistry{
-		templates: template.Must(template.ParseGlob("program12/public/*.html")),
+		templates: template.Must(template.ParseGlob("public/*.html")),
 	}
 
 	// Login route
